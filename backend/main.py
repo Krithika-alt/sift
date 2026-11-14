@@ -102,4 +102,6 @@ def report_price(req: ReportPriceRequest):
 
 @app.post("/api/ask-agent")
 def ask_agent(req: AskRequest):
-    return answer_question(req.question, req.ranking)
+    ds = get_data_source()
+    data = {"stores": ds.stores(), "products": ds.products(), "prices": ds.latest_prices()}
+    return answer_question(req.question, req.ranking, data)
