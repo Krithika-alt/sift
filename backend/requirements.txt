@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+rapidfuzz
+pydantic
+python-dotenv
+databricks-sql-connector
+pytest
+httpx
