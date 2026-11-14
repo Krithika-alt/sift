@@ -73,3 +73,11 @@ def test_api_three_questions():
     for q in ["Why did this store win?", "Cheapest protein per dollar?", "What can I swap to save money?"]:
         r = c.post("/api/ask-agent", json={"question": q, "ranking": rk})
         assert r.status_code == 200 and r.json()["answer"]
+
+
+def test_why_mentions_stale_prices():
+    rk = {"ranked_stores": [{"store_id": "a", "name": "A", "distance_miles": 1.0, "total_basket_price": 3.0,
+          "ml_rank_score": 0.9, "last_crowd_ping": None, "missing_items": [],
+          "items_breakdown": [{"name": "Eggs", "stale": True, "price_age": "9 days ago"}]}]}
+    r = answer_question("Why did this store win?", rk)
+    assert "over a week old" in r["answer"] and "9 days ago" in r["answer"]

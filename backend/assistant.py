@@ -79,6 +79,11 @@ def explain_ranking(question: str, ranking: dict | None) -> dict:
     if top.get("missing_items"):
         parts.append(f"Heads up: {', '.join(top['missing_items'])} unavailable there.")
         facts.append(f"missing at {top['name']}: {', '.join(top['missing_items'])}")
+    stale = [b["name"] for b in top["items_breakdown"] if b.get("stale")]
+    if stale:
+        ages = ", ".join(f"{b['name']} ({b['price_age']})" for b in top["items_breakdown"] if b.get("stale"))
+        parts.append(f"Note: some prices here are over a week old and may have changed: {ages}.")
+        facts.append(f"stale prices at {top['name']}: {ages}")
     if top.get("last_crowd_ping"):
         parts.append(f"A shopper reported a price here {top['last_crowd_ping']}.")
         facts.append(f"last crowd ping at {top['name']}: {top['last_crowd_ping']}")

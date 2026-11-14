@@ -78,6 +78,22 @@ def _fmt_unit_price(row: dict) -> str | None:
     return f"${up:.2f}/{row.get('unit') or 'unit'}"
 
 
+STALE_AFTER_DAYS = 7
+
+
+def _freshness(row: dict | None, now: datetime) -> dict:
+    """Extra breakdown fields: how old the price is and whether it is stale.
+
+    Simulated prices are never called stale (they are already labelled
+    'simulated'). This does NOT change the score, it only makes age visible.
+    """
+    if row is None or row.get("observed_at") is None:
+        return {"price_age": None, "stale": False}
+    ts = row["observed_at"]
+    old = (now - ts).total_seconds() > STALE_AFTER_DAYS * 86400
+    return {"price_age": time_ago(ts, now), "stale": bool(old and row.get("source") != "simulated")}
+
+
 def _ts(row: dict) -> datetime:
     return row.get("observed_at") or _MIN_TS
 
@@ -149,7 +165,7 @@ def rank_stores(
                 breakdown.append({
                     "query": q, "name": name, "price": round(r["price"], 2),
                     "unit_price": _fmt_unit_price(r), "in_stock": True,
-                    "source": r.get("source"),
+                    "source": r.get("source"), **_freshness(r, now),
                 })
             else:
                 total += max_seen.get(pid, 0.0)
@@ -159,7 +175,7 @@ def rank_stores(
                     "price": round(r["price"] if r else max_seen.get(pid, 0.0), 2),
                     "unit_price": _fmt_unit_price(r) if r else None,
                     "in_stock": False,
-                    "source": r.get("source") if r else None,
+                    "source": r.get("source") if r else None, **_freshness(r, now),
                 })
             if r is not None and r.get("source") == "crowd":
                 if last_crowd is None or _ts(r) > last_crowd:

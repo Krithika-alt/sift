@@ -90,7 +90,7 @@ def test_output_matches_contract_keys():
     assert set(s) == {"store_id", "name", "lat", "lon", "distance_miles", "total_basket_price",
                       "unit_price_savings_pct", "ml_rank_score", "last_crowd_ping",
                       "missing_items", "items_breakdown"}
-    assert set(s["items_breakdown"][0]) == {"query", "name", "price", "unit_price", "in_stock", "source"}
+    assert set(s["items_breakdown"][0]) == {"query", "name", "price", "unit_price", "in_stock", "source", "price_age", "stale"}
 
 
 def test_haversine_and_time_ago():
@@ -98,3 +98,23 @@ def test_haversine_and_time_ago():
     assert 0.9 < haversine_miles(43.0731, -89.4012, 43.0731, -89.4012 + 0.0197) < 1.1
     assert time_ago(None, NOW) is None
     assert time_ago(datetime(2026, 11, 14, 21, 56, tzinfo=timezone.utc), NOW) == "4 mins ago"
+
+
+def test_stale_flag_and_age_do_not_change_score():
+    from datetime import datetime, timedelta, timezone
+    from scoring import rank_stores
+    now = datetime(2026, 11, 14, tzinfo=timezone.utc)
+    stores = [{"store_id": "a", "name": "A", "lat": 43.07, "lon": -89.4}]
+    prods = {"p": {"name": "Eggs"}}
+
+    def run(days, source):
+        rows = [{"store_id": "a", "product_id": "p", "price": 2.0, "unit_price": 0.2, "unit": "ct",
+                 "in_stock": True, "source": source, "observed_at": now - timedelta(days=days)}]
+        return rank_stores({"lat": 43.07, "lon": -89.4}, [("eggs", "p")], None, None, rows, stores, prods, now)[0]
+
+    old, new, sim = run(10, "website"), run(1, "website"), run(10, "simulated")
+    assert old["items_breakdown"][0]["stale"] is True
+    assert old["items_breakdown"][0]["price_age"] == "10 days ago"
+    assert new["items_breakdown"][0]["stale"] is False
+    assert sim["items_breakdown"][0]["stale"] is False
+    assert old["ml_rank_score"] == new["ml_rank_score"]
