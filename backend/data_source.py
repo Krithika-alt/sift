@@ -12,9 +12,16 @@ get_data_source().
 from __future__ import annotations
 
 import itertools
+import os
 import random
 import threading
 from datetime import datetime, timedelta, timezone
+
+try:  # load backend/.env (Databricks settings); harmless if the file is absent
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 STORES = [
     {"store_id": "trader_joes_monroe", "name": "Trader Joe's (Monroe St)",
@@ -136,11 +143,20 @@ class MockData:
             self._pings.clear()
 
 
-_instance: MockData | None = None
+_instance = None
 
 
-def get_data_source() -> MockData:
+def get_data_source():
+    """DATA_SOURCE=databricks uses the real tables; anything else uses fake data."""
     global _instance
     if _instance is None:
-        _instance = MockData()
+        if os.getenv("DATA_SOURCE", "mock").strip().lower() == "databricks":
+            from databricks_source import DatabricksData
+            _instance = DatabricksData()
+        else:
+            _instance = MockData()
     return _instance
+
+
+if os.getenv("DATA_SOURCE", "mock").strip().lower() == "databricks":
+    get_data_source()  # connect at startup so the SQL warehouse starts waking up
