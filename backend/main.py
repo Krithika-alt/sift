@@ -5,7 +5,7 @@ Endpoints follow section 3 of the team build plan exactly:
   GET /api/products, GET /api/health
 The frontend only talks to this API; only this backend talks to Databricks.
 """
-from __future__ import annotations
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,14 +31,14 @@ class Weights(BaseModel):
     price: float = 0.6
     distance: float = 0.3
     preference: float = 0.1
-    stock: float | None = None
+    stock: Optional[float] = None
 
 
 class RankRequest(BaseModel):
     user_location: Location
     items: list[str] = Field(min_length=1)
     weights: Weights = Weights()
-    budget: float | None = None
+    budget: Optional[float] = None
 
 
 class ReportPriceRequest(BaseModel):
@@ -50,12 +50,21 @@ class ReportPriceRequest(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
-    ranking: dict | None = None
+    ranking: Optional[dict] = None
 
 
 @app.get("/api/health")
 def health():
-    return {"ok": True}
+    """200 {"ok": true} when the data source answers; 503 {"ok": false, ...} when it does not.
+    With Databricks this also wakes the SQL warehouse: hit it before the demo."""
+    ds = get_data_source()
+    kind = "databricks" if type(ds).__name__ == "DatabricksData" else "mock"
+    try:
+        ds.ping()
+    except Exception as e:  # noqa: BLE001
+        msg = (str(e).splitlines() or [type(e).__name__])[0][:200]
+        raise HTTPException(503, detail={"ok": False, "data_source": kind, "error": msg})
+    return {"ok": True, "data_source": kind}
 
 
 @app.get("/api/products")

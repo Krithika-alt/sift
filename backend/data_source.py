@@ -138,6 +138,9 @@ class MockData:
             })
             return ping_id
 
+    def ping(self) -> bool:
+        return True
+
     def reset_pings(self) -> None:
         with self._lock:
             self._pings.clear()

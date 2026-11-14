@@ -25,8 +25,25 @@ def clean_pings():
     get_data_source().reset_pings()
 
 
+def test_health_reports_ok_and_data_source():
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "data_source": "mock"}
+
+
+def test_health_returns_503_when_data_source_is_down(monkeypatch):
+    class Down:
+        def ping(self):
+            raise RuntimeError("warehouse unreachable\nsecret second line")
+
+    monkeypatch.setattr(main, "get_data_source", lambda: Down())
+    r = client.get("/api/health")
+    assert r.status_code == 503
+    body = r.json()["detail"]
+    assert body["ok"] is False and body["error"] == "warehouse unreachable"
+
+
 def test_health_and_products():
-    assert client.get("/api/health").json() == {"ok": True}
     products = client.get("/api/products").json()
     assert {"product_id": "eggs_large_12", "name": "Large eggs, 12 ct"} in products
 
