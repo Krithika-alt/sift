@@ -254,7 +254,7 @@ def pair_answer(question: str, data: dict) -> dict | None:
     gap = rows[-1][0] - rows[0][0]
     answer = (f"At {store['name']}: {'; '.join(parts)}. "
               f"{rows[0][1]['name']} is cheaper by ${gap:.2f}.")
-    return {"answer": answer, "facts_used": parts}
+    return {"answer": answer, "facts_used": parts, "verify": [f"{price:.2f}" for price, _, _ in rows]}
 
 
 def price_answer(question: str, data: dict) -> dict:
@@ -275,7 +275,8 @@ def price_answer(question: str, data: dict) -> dict:
         parts.append(f"{stores[sid]['name']} ${price:.2f}{gap} [{_label(r.get('source'))}]")
     answer = (f"The cheapest {p['name']} is ${low[0]:.2f} at {stores[low[1]]['name']}. "
               f"All stores: {'; '.join(parts)}.")
-    return {"answer": answer, "facts_used": parts}
+    return {"answer": answer, "facts_used": parts,
+            "verify": [stores[low[1]]["name"].split(" (")[0].lower(), f"{low[0]:.2f}"]}
 
 
 def stock_answer(question: str, data: dict) -> dict:
@@ -287,7 +288,7 @@ def stock_answer(question: str, data: dict) -> dict:
     if not lacking:
         return {"answer": f"Every store in our tables has {p['name']} in stock.", "facts_used": []}
     ans = f"{p['name']} is not in stock (or has no price) at: {', '.join(lacking)}."
-    return {"answer": ans, "facts_used": [ans]}
+    return {"answer": ans, "facts_used": [ans], "verify": [n.split(" (")[0].lower() for n in lacking]}
 
 
 def answer_question(question: str, ranking: dict | None, data: dict | None = None) -> dict:

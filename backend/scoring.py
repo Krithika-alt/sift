@@ -107,12 +107,15 @@ def rank_stores(
     stores: list[dict],
     products: dict[str, dict] | None = None,
     now: datetime | None = None,
+    quantities: dict | None = None,
 ) -> list[dict]:
     """Rank stores for a basket. Returns the contract's `ranked_stores` list.
 
     items:  [(user_text, product_id or None)]; None = no product match.
     prices: rows shaped like the `latest_prices` view.
     budget: accepted for contract compatibility; not part of the formula.
+    quantities: optional {product_id: how many}; the basket total uses price x quantity
+        (default 1 each). Each breakdown line has `quantity` and `line_total`.
     """
     now = now or datetime.now(timezone.utc)
     products = products or {}
@@ -156,23 +159,27 @@ def rank_stores(
         for q, pid in matched:
             r = latest.get((sid, pid))
             name = products.get(pid, {}).get("name", pid)
+            qty = max(int((quantities or {}).get(pid, 1)), 1)
             if r is not None and r["in_stock"]:
-                total += r["price"]
+                total += r["price"] * qty
                 in_stock_n += 1
                 up = r.get("unit_price") if r.get("unit_price") is not None else r["price"]
                 if up <= best_unit.get(pid, float("inf")) + 1e-9:
                     pref_n += 1
                 breakdown.append({
                     "query": q, "name": name, "price": round(r["price"], 2),
+                    "quantity": qty, "line_total": round(r["price"] * qty, 2),
                     "unit_price": _fmt_unit_price(r), "in_stock": True,
                     "source": r.get("source"), **_freshness(r, now),
                 })
             else:
-                total += max_seen.get(pid, 0.0)
+                total += max_seen.get(pid, 0.0) * qty
                 missing.append(q)
+                shelf = r["price"] if r else max_seen.get(pid, 0.0)
                 breakdown.append({
                     "query": q, "name": name,
-                    "price": round(r["price"] if r else max_seen.get(pid, 0.0), 2),
+                    "price": round(shelf, 2),
+                    "quantity": qty, "line_total": round(shelf * qty, 2),
                     "unit_price": _fmt_unit_price(r) if r else None,
                     "in_stock": False,
                     "source": r.get("source") if r else None, **_freshness(r, now),

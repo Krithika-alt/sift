@@ -127,7 +127,12 @@ def make_agents(data: dict) -> dict:
 
     def grounded_agent(q: str) -> dict:
         return answer_question(q, None, data)
-    return {"genie": genie_agent, "grounded": grounded_agent}
+    def hybrid_agent(q: str) -> dict:
+        """What the app does: Genie, checked against the tables, with the table answer as backup."""
+        from agent import respond
+        from genie import ask_genie
+        return respond(q, None, data, lambda qq: ask_genie(qq, stores=data["stores"]))
+    return {"genie": genie_agent, "grounded": grounded_agent, "hybrid": hybrid_agent}
 
 
 def run_agent(agent, cases: list, workers: int = 1) -> list:
@@ -204,7 +209,8 @@ def log_to_mlflow(all_summaries: dict, all_results: dict, tracking: str, facts: 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Evaluate the Sift assistant")
-    ap.add_argument("--agent", choices=["genie", "grounded", "both"], default="both")
+    ap.add_argument("--agent", choices=["genie", "grounded", "hybrid", "both", "all"], default="both",
+                    help="both = genie + grounded; hybrid = what the app does (Genie checked against the tables); all = all three")
     ap.add_argument("--n", type=int, default=12, help="number of questions (default 12)")
     ap.add_argument("--workers", type=int, default=3, help="parallel Genie calls (default 3)")
     ap.add_argument("--dry-run", action="store_true", help="print the questions, call nothing")
@@ -229,14 +235,16 @@ def main() -> int:
 
     from genie import genie_enabled
     agents = make_agents(data)
-    names = ["genie", "grounded"] if args.agent == "both" else [args.agent]
-    if "genie" in names and not genie_enabled():
-        print("WARN  Genie is not configured (GENIE_SPACE_ID / DATABRICKS_* in backend/.env); skipping it")
-        names.remove("genie")
+    names = {"both": ["genie", "grounded"], "all": ["genie", "grounded", "hybrid"]}.get(args.agent, [args.agent])
+    for g in ("genie", "hybrid"):
+        if g in names and not genie_enabled():
+            print(f"WARN  Genie is not configured (GENIE_SPACE_ID / DATABRICKS_* in backend/.env); skipping {g}")
+            names.remove(g)
     summaries, results = {}, {}
     for name in names:
-        print(f"\nRunning {name} ({'parallel x' + str(args.workers) if name == 'genie' else 'instant'})...")
-        res = run_agent(agents[name], cases, workers=args.workers if name == "genie" else 1)
+        slow = name in ("genie", "hybrid")
+        print(f"\nRunning {name} ({'parallel x' + str(args.workers) if slow else 'instant'})...")
+        res = run_agent(agents[name], cases, workers=args.workers if slow else 1)
         results[name], summaries[name] = res, summarize(res)
         print_report(name, res, summaries[name])
     if args.tracking != "none" and summaries:

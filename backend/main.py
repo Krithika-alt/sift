@@ -5,13 +5,13 @@ Endpoints follow section 3 of the team build plan exactly:
   GET /api/products, GET /api/health
 The frontend only talks to this API; only this backend talks to Databricks.
 """
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from assistant import answer_question, _intent
+from agent import respond
 from data_source import get_data_source
 from matching import match_items
 from genie import genie_enabled, ask_genie
@@ -36,9 +36,15 @@ class Weights(BaseModel):
     stock: Optional[float] = None
 
 
+class ItemSpec(BaseModel):
+    text: str
+    quantity: int = Field(default=1, ge=1, le=99)
+
+
 class RankRequest(BaseModel):
     user_location: Location
-    items: list[str] = Field(min_length=1)
+    # plain strings (one of each) or {"text": "milk", "quantity": 2}; /api/parse-list returns that shape
+    items: list[Union[str, ItemSpec]] = Field(min_length=1)
     weights: Weights = Weights()
     budget: Optional[float] = None
 
@@ -90,7 +96,13 @@ def parse_list_endpoint(req: ParseListRequest):
 def rank(req: RankRequest):
     ds = get_data_source()
     products_list = ds.products()
-    items = match_items(req.items, products_list)
+    specs = [ItemSpec(text=i) if isinstance(i, str) else i for i in req.items]
+    items = match_items([sp.text for sp in specs], products_list)
+    quantities: dict = {}
+    for sp in specs:  # sum quantities per product, even when two phrases match the same product
+        hit = match_items([sp.text], products_list)
+        if hit and hit[0][1]:
+            quantities[hit[0][1]] = quantities.get(hit[0][1], 0) + sp.quantity
     ranked = rank_stores(
         user_location=req.user_location.model_dump(),
         items=items,
@@ -99,6 +111,7 @@ def rank(req: RankRequest):
         prices=ds.latest_prices(),
         stores=ds.stores(),
         products={p["product_id"]: p for p in products_list},
+        quantities=quantities,
     )
     return {"ranked_stores": ranked}
 
@@ -118,12 +131,8 @@ def report_price(req: ReportPriceRequest):
 def ask_agent(req: AskRequest):
     ds = get_data_source()
     data = {"stores": ds.stores(), "products": ds.products(), "prices": ds.latest_prices()}
-    if genie_enabled() and _intent(req.question) != "why":
-        try:
-            return ask_genie(req.question, ranking=req.ranking, stores=data["stores"])
-        except Exception:
-            pass  # fall back to the grounded answers below
-    out = answer_question(req.question, req.ranking, data)
-    out["source"] = "grounded"
-    out["headline"] = out["answer"].split(". ")[0].rstrip(".") + "."
-    return out
+    genie_fn = None
+    if genie_enabled():
+        def genie_fn(q):
+            return ask_genie(q, ranking=req.ranking, stores=data["stores"])
+    return respond(req.question, req.ranking, data, genie_fn)
