@@ -28,6 +28,7 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
+  --color-hair: #E6DCCB; /* solid 1px hairlines everywhere that isn't a receipt */
   --color-kraft: var(--kraft);
   --color-soil: var(--soil);
   --color-leaf: var(--leaf);

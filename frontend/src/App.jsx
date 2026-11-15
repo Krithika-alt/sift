@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { askAgent, getProducts, health, nearbyStores, rankStores, reportPrice } from './api/client.js'
-import { SvgDefs } from './components/brand.jsx'
+import { SvgDefs, Toast } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
 import { SheetHostContext } from './components/Sheet.jsx'
 import TabBar from './components/TabBar.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { isRankable, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
+import {
+  findSavedBag,
+  isRankable,
+  loadPastBags,
+  newSavedBag,
+  recordWinner,
+  removePastBag,
+  renamePastBag,
+  saveBag,
+  toItem,
+  toRankItem,
+  updateSavedBag,
+} from './lib/bag.js'
 import { BuddyContext, buddyOf, loadProfile, saveProfile } from './lib/profile.js'
 import { savingsVsNearby } from './lib/stores.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
@@ -18,6 +30,7 @@ import Receipt from './screens/Receipt.jsx'
 import ReportPriceSheet from './screens/ReportPriceSheet.jsx'
 import Results from './screens/Results.jsx'
 import Saved from './screens/Saved.jsx'
+import SavedBag from './screens/SavedBag.jsx'
 import Sifting from './screens/Sifting.jsx'
 import Splash from './screens/Splash.jsx'
 
@@ -25,6 +38,7 @@ const SLAP_MS = 3200
 const SLIDE_DELAY_MS = 450
 const SPLASH_MS = 1000
 const TAB_SCREENS = ['map', 'saved', 'me']
+const TOAST_MS = 2500
 
 function rankBody(items, mode, budget, preferences, home) {
   const body = {
@@ -70,6 +84,10 @@ export default function App() {
   const [ask, setAsk] = useState(null)
   const [askOpen, setAskOpen] = useState(false)
 
+  const [savedAt, setSavedAt] = useState(null) // the saved bag open on the Saved Bag screen
+  const [savedFrom, setSavedFrom] = useState('saved')
+  const [toast, setToast] = useState(null)
+
   const [sheetNode, setSheetNode] = useState(null)
   const [sheetCount, setSheetCount] = useState(0)
   const onSheetOpenChange = useCallback((d) => setSheetCount((n) => Math.max(0, n + d)), [])
@@ -80,10 +98,6 @@ export default function App() {
   const askId = useRef(0)
 
   const budget = bag.budgetSet ? bag.budget : profile.budget
-  const preferences = useMemo(
-    () => [...new Set([...bag.preferences, ...profile.diet.map((d) => d.toLowerCase())])],
-    [bag.preferences, profile.diet],
-  )
   const home = profile.home
   const place = home.id === 'geo' ? 'you' : home.label
   const fellBack = demo && !DEMO_MODE
@@ -111,18 +125,22 @@ export default function App() {
     return () => clearTimeout(t)
   }, [slapId])
 
-  async function rank(items, nextMode) {
+  // b: the bag to rank (defaults to the current bag); budget and diet resolve against the profile.
+  async function rank(nextMode, b = bag) {
     const id = ++reqId.current
-    const { data, demo: wasDemo } = await rankStores(rankBody(items, nextMode, budget, preferences, home))
+    const bBudget = b.budgetSet ? b.budget : profile.budget
+    const prefs = [...new Set([...(b.preferences ?? []), ...profile.diet.map((d) => d.toLowerCase())])]
+    const { data, demo: wasDemo } = await rankStores(rankBody(b.items, nextMode, bBudget, prefs, home))
     return id === reqId.current ? { ranked: data.ranked_stores, demo: wasDemo } : null
   }
 
-  async function sift() {
+  // Sifting never saves a bag (saving is on purpose); it only updates the winner on a matching saved bag.
+  async function sift(b = bag) {
     setSiftRanked(null)
     setSiftError('')
     setScreen('sifting')
     try {
-      const res = await rank(bag.items, mode)
+      const res = await rank(mode, b)
       if (!res) return
       setDemo(res.demo)
       setSiftedAt(new Date())
@@ -130,12 +148,38 @@ export default function App() {
       const best = res.ranked[0]
       if (best) {
         const winner = { store_id: best.store_id, total: best.total_basket_price, saved: Math.max(0, savingsVsNearby(best, res.ranked)) }
-        setPastBags(savePastBag({ ...bag, budget }, winner))
+        setPastBags(recordWinner(b, winner))
       }
     } catch (err) {
       setSiftError(friendlyError(err))
     }
   }
+
+  // Saved bags
+  const savedMatch = useMemo(() => findSavedBag(pastBags, bag), [pastBags, bag])
+  const toastTimer = useRef(null)
+  function showToast(t) {
+    clearTimeout(toastTimer.current)
+    setToast({ ...t, id: Date.now() })
+    toastTimer.current = setTimeout(() => setToast(null), TOAST_MS)
+  }
+  function openSaved(at, from = screen) {
+    setToast(null)
+    setSavedAt(at)
+    setSavedFrom(from === 'savedBag' ? 'saved' : from)
+    setScreen('savedBag')
+  }
+  function saveCurrentBag() {
+    const { list, entry } = saveBag({ ...bag, budget })
+    setPastBags(list)
+    showToast({ text: `Saved as ${entry.name}`, action: { label: 'Rename', onClick: () => openSaved(entry.at, 'bag') } })
+  }
+  function newBag() {
+    const { list, entry } = newSavedBag(profile.budget)
+    setPastBags(list)
+    openSaved(entry.at, 'saved')
+  }
+  const asBag = (b) => ({ items: b.items.map(toItem), budget: b.budget ?? profile.budget, budgetSet: Boolean(b.budgetSet), preferences: b.preferences ?? [] })
 
   const finishSifting = useCallback(() => {
     setRanked(siftRanked)
@@ -147,7 +191,7 @@ export default function App() {
     setMode(nextMode)
     setBusy(true)
     try {
-      const res = await rank(bag.items, nextMode)
+      const res = await rank(nextMode)
       if (res) {
         setDemo(res.demo)
         setRanked(res.ranked)
@@ -166,7 +210,7 @@ export default function App() {
     setScreen('results')
     setBusy(true)
     try {
-      const res = await rank(bag.items, mode)
+      const res = await rank(mode)
       if (!res) return setBusy(false)
       setTimeout(() => {
         setDemo(res.demo || report.demo)
@@ -200,17 +244,13 @@ export default function App() {
     setScreen('receipt')
   }
 
-  function loadBag(pb) {
-    setBag({ items: pb.items.map(toItem), budget: pb.budget, budgetSet: Boolean(pb.budgetSet), preferences: pb.preferences ?? [] })
-    setScreen('bag')
-  }
-
   function changeTab(t) {
     setScreen(t)
   }
 
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
-  const tab = TAB_SCREENS.includes(screen) ? screen : 'bag'
+  const savedOpen = pastBags.find((b) => b.at === savedAt)
+  const tab = screen === 'savedBag' ? 'saved' : TAB_SCREENS.includes(screen) ? screen : 'bag'
   // While a sheet is open the tab bar fades out (it keeps its space, so nothing jumps).
   const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen)
   // Map tab: stores only, no bag. Last rank response's store list, else the mock list; by distance.
@@ -245,9 +285,10 @@ export default function App() {
                     budget={budget}
                     products={products}
                     pastBags={pastBags}
-                    onLoadPast={loadBag}
-                    onRenamePast={(at, name) => setPastBags(renamePastBag(at, name))}
-                    onSift={sift}
+                    saved={savedMatch}
+                    onSave={saveCurrentBag}
+                    onOpenSaved={(at) => openSaved(at, 'bag')}
+                    onSift={() => sift()}
                     demo={demo}
                     place={place}
                     userName={profile.name}
@@ -286,17 +327,36 @@ export default function App() {
                   <MapTab stores={mapStores} user={home} demo={demo} />
                 )}
                 {screen === 'saved' && (
-                  <Saved
-                    pastBags={pastBags}
-                    onOpen={loadBag}
-                    onRename={(at, name) => setPastBags(renamePastBag(at, name))}
-                    onRemove={(at) => setPastBags(removePastBag(at))}
+                  <Saved pastBags={pastBags} onOpen={(at) => openSaved(at, 'saved')} onNew={newBag} />
+                )}
+                {screen === 'savedBag' && savedOpen && (
+                  <SavedBag
+                    key={savedOpen.at}
+                    pb={savedOpen}
+                    products={products}
+                    onBack={() => setScreen(savedFrom)}
+                    onChange={(patch) => setPastBags(updateSavedBag(savedOpen.at, patch))}
+                    onRename={(name) => setPastBags(renamePastBag(savedOpen.at, name))}
+                    onSift={(b) => {
+                      const next = asBag(b)
+                      setBag(next)
+                      sift(next)
+                    }}
+                    onUse={(b) => {
+                      setBag(asBag(b))
+                      setScreen('bag')
+                    }}
+                    onDelete={(at) => {
+                      setPastBags(removePastBag(at))
+                      setScreen('saved')
+                    }}
                   />
                 )}
                 {screen === 'me' && <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} />}
               </main>
 
               {showTabs && <TabBar active={tab} onChange={changeTab} hidden={sheetCount > 0} />}
+              <Toast toast={toast} />
               {/* sheets portal here: above the tab bar, outside main's stacking context */}
               <div ref={setSheetNode} className="contents" />
 

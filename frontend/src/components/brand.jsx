@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Buddy from './Buddies.jsx'
 import { STICKER_COLORS } from './Sticker.jsx'
 import { useBuddy } from '../lib/profile.js'
@@ -112,6 +113,23 @@ export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)'
   )
 }
 
+/**
+ * Stickers land: scale 0.9 -> 1 and rotate +4deg -> their own tilt, 320 ms, gentle overshoot.
+ * framer-motion's MotionConfig reducedMotion="user" (App) turns this off when asked.
+ */
+export function LandingSticker({ delay = 0, children, className = '' }) {
+  return (
+    <motion.span
+      className={`inline-flex ${className}`}
+      initial={{ scale: 0.9, rotate: 4, opacity: 0 }}
+      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+      transition={{ duration: 0.32, ease: [0.34, 1.4, 0.64, 1], delay }}
+    >
+      {children}
+    </motion.span>
+  )
+}
+
 /** Small honest label shown whenever the data came from the local mock. */
 export function DemoBadge() {
   return (
@@ -139,12 +157,59 @@ export function PrimaryButton({ children, className = '', ...rest }) {
   )
 }
 
+/** Back chevron: 44px circle, eggshell, 1.5px line border. */
+export function BackButton({ onClick, label = 'Back' }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-line bg-eggshell text-ink transition-transform active:scale-[0.98]"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" />
+      </svg>
+    </button>
+  )
+}
+
+/** Calm toast at the bottom: Karla 15, eggshell on soil, fades. */
+export function Toast({ toast }) {
+  return (
+    <AnimatePresence>
+      {toast && (
+        <motion.div
+          key={toast.id}
+          role="status"
+          className="pointer-events-none absolute inset-x-5 bottom-[196px] z-50 flex justify-center"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <span className="soil pointer-events-auto flex min-h-11 items-center gap-2 rounded-[14px] px-4 text-[15px] text-eggshell">
+            {toast.text}
+            {toast.action && (
+              <>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={toast.action.onClick} className="min-h-11 font-semibold underline underline-offset-4">
+                  {toast.action.label}
+                </button>
+              </>
+            )}
+          </span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 /** Outlined secondary button. */
 export function SecondaryButton({ children, className = '', ...rest }) {
   return (
     <button
       type="button"
-      className={`min-h-14 w-full rounded-[14px] border-[1.5px] border-ink bg-receipt px-5 text-[17px] font-semibold text-ink ${className}`}
+      className={`min-h-14 w-full rounded-[14px] border-[1.5px] border-ink bg-receipt px-5 text-[17px] font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-40 ${className}`}
       {...rest}
     >
       {children}

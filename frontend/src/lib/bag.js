@@ -126,27 +126,59 @@ export function autoName(items) {
   return joined.charAt(0).toUpperCase() + joined.slice(1)
 }
 
-/**
- * Every successful sift saves the bag (newest first, max 12), with the winner:
- * winner = { store_id, total, saved } where saved = dollars below the nearby average.
- */
-export function savePastBag(bag, winner) {
-  const items = bag.items.filter(isRankable)
-  if (!items.length) return loadPastBags()
-  const sig = (b) => b.items.map((i) => itemKey(toItem(i))).sort().join('|')
+// Saved bags are saved on purpose (the bookmark on the Bag, or "+" on Saved), newest first, max 12.
+// { at (id), name, renamed, items, budget, budgetSet, preferences, winner? }
+// winner = { store_id, total, saved } from the last sift of that bag (saved = dollars below the nearby average).
+
+/** Same contents = same bag: the confirmed rows and their quantities. */
+export const bagSignature = (items) =>
+  items.map(toItem).filter(isRankable).map((i) => `${itemKey(i)}x${i.quantity ?? 1}`).sort().join('|')
+
+export const findSavedBag = (list, bag) => {
+  const sig = bagSignature(bag.items)
+  return sig ? list.find((b) => bagSignature(b.items) === sig) ?? null : null
+}
+
+/** Save the current bag with its auto-name (or return the one already saved). -> { list, entry } */
+export function saveBag(bag) {
   const old = loadPastBags()
-  const same = old.find((b) => sig(b) === sig({ items }))
+  const same = findSavedBag(old, bag)
+  if (same) return { list: old, entry: same }
+  const items = bag.items.map(toItem).filter(isRankable)
   const entry = {
+    at: Date.now(),
+    name: items.length ? autoName(items) : 'New bag',
+    renamed: false,
     items,
     budget: bag.budget,
     budgetSet: Boolean(bag.budgetSet),
-    preferences: bag.preferences,
-    name: same?.renamed ? same.name : autoName(items),
-    renamed: Boolean(same?.renamed),
-    winner,
-    at: Date.now(),
+    preferences: bag.preferences ?? [],
   }
-  return writePastBags([entry, ...old.filter((b) => b !== same)].slice(0, MAX_PAST))
+  return { list: writePastBags([entry, ...old].slice(0, MAX_PAST)), entry }
+}
+
+/** "+" on Saved: a new, empty saved bag. */
+export const newSavedBag = (budget) => {
+  const entry = { at: Date.now(), name: 'New bag', renamed: true, items: [], budget, budgetSet: false, preferences: [] }
+  return { list: writePastBags([entry, ...loadPastBags()].slice(0, MAX_PAST)), entry }
+}
+
+/** Edits save automatically; an un-renamed bag keeps its auto-name in step with its items. */
+export const updateSavedBag = (at, patch) =>
+  writePastBags(
+    loadPastBags().map((b) => {
+      if (b.at !== at) return b
+      const next = { ...b, ...patch }
+      if (!next.renamed && patch.items) next.name = next.items.length ? autoName(next.items) : 'New bag'
+      return next
+    }),
+  )
+
+/** After a sift, remember the winner on the saved bag with the same contents (if there is one). */
+export function recordWinner(bag, winner) {
+  const old = loadPastBags()
+  const same = findSavedBag(old, bag)
+  return same ? updateSavedBag(same.at, { winner }) : old
 }
 
 export const renamePastBag = (at, name) =>
