@@ -1,0 +1,14 @@
+store_id,product_id,price,size_value,size_unit,in_stock,source,observed_at,source_url,notes
+target_state_st,bread_white_20oz,1.69,20,oz,true,website,2026-11-14 22:20:00,https://www.target.com/s?searchTerm=good+and+gather+white+bread,Market Pantry White Sandwich Bread 20oz
+target_state_st,rice_white_2lb,2.39,2,lb,true,website,2026-11-14 22:20:00,https://www.target.com/p/enriched-long-grain-white-rice-good-gather/-/A-89229583,Good & Gather Enriched Long Grain White Rice 2lb
+target_state_st,pasta_spaghetti_16oz,1.49,16,oz,true,website,2026-11-14 22:20:00,https://www.target.com/s?searchTerm=good+and+gather+spaghetti+16oz,Good & Gather Spaghetti 16oz
+target_state_st,ramen_3oz,0.69,3,oz,true,website,2026-11-14 22:20:00,https://www.target.com/s?searchTerm=maruchan+chicken+ramen+3oz,Maruchan Chicken Ramen 3oz
+target_state_st,toilet_paper_12,10.79,12,ct,true,website,2026-11-14 22:20:00,https://www.target.com/p/soft-strong-toilet-paper-up-up/-/A-54278969,up&up Soft & Strong 12 Mega rolls
+fresh_madison_market,bread_white_20oz,2.99,20,oz,true,website,2026-11-14 22:20:00,https://shop.freshmadisonmarket.com/shop#!/?q=white%20bread&search_option_id=product,Our Family White Bread 20oz
+fresh_madison_market,rice_white_2lb,1.49,1,lb,true,website,2026-11-14 22:20:00,https://shop.freshmadisonmarket.com/shop#!/?q=long%20grain%20white%20rice&search_option_id=product,Our Family Long Grain White Rice 1lb (only 1lb size in store brand)
+fresh_madison_market,pasta_spaghetti_16oz,1.99,16,oz,true,website,2026-11-14 22:20:00,https://shop.freshmadisonmarket.com/shop#!/?q=spaghetti%2016%20oz&search_option_id=product,Creamette Spaghetti 16oz regular price (name brand; no store brand listed; 4 for $5 sale ended 11/14)
+fresh_madison_market,ramen_3oz,0.49,3,oz,true,website,2026-11-14 22:20:00,https://shop.freshmadisonmarket.com/shop#!/?q=maruchan%20chicken%20ramen&search_option_id=product,Maruchan Chicken Ramen 3oz
+fresh_madison_market,toilet_paper_12,8.29,6,ct,true,website,2026-11-14 22:20:00,https://shop.freshmadisonmarket.com/shop#!/?q=our%20family%20toilet%20paper&search_option_id=product,Our Family Mega Bath Tissue 6 rolls (only size listed)
+trader_joes_monroe,bread_white_20oz,2.29,22,oz,true,website,2026-11-14 22:20:00,https://www.traderjoes.com/home/products/pdp/white-sliced-bread-060500,TJ's White Sliced Bread 22oz
+trader_joes_monroe,rice_white_2lb,2.99,2,lb,true,website,2026-11-14 22:20:00,https://www.traderjoes.com/home/search?q=rice&section=products&global=yes,TJ's Basmati Rice from India 2lb (no plain long grain listed)
+trader_joes_monroe,pasta_spaghetti_16oz,0.99,16,oz,true,website,2026-11-14 22:20:00,https://www.traderjoes.com/home/products/pdp/spaghetti-084844,TJ's Spaghetti 16oz
