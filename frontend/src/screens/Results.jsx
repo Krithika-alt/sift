@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { BackButton, BuddyLine, DemoBadge, SectionLabel, wash } from '../components/brand.jsx'
+import { BackButton, BuddyLine, DemoBadge, LandingSticker, SectionLabel, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
@@ -10,19 +10,14 @@ import { askChips } from './AskTomSheet.jsx'
 const fmtMi = (mi) => `${Number(mi).toFixed(1)} mi`
 export const modeLabel = (m, buddyName) => (m.id === 'balanced' ? `${buddyName}'s pick` : m.label)
 
-// The sticker slap after a price report: lands big and tilted, then settles.
+// The sticker slap after a price report: the calm landing (scale 0.9 -> 1, +4deg -> tilt, 320 ms).
 function SlapSticker() {
   return (
-    <motion.span
-      className="inline-block"
-      initial={{ scale: 2.4, opacity: 0, rotate: -24 }}
-      animate={{ scale: 1, opacity: 1, rotate: 0 }}
-      transition={{ type: 'spring', damping: 11, stiffness: 420, delay: 0.15 }}
-    >
+    <LandingSticker delay={0.15}>
       <Sticker color="olive" tilt={-6}>
         Real price
       </Sticker>
-    </motion.span>
+    </LandingSticker>
   )
 }
 
@@ -70,9 +65,11 @@ function BestCard({ store, ranked, ctx, onReceipt }) {
       style={{ background: wash(storeColor(store.store_id), 14) }}
     >
       <span className="absolute -right-2.5 -top-3">
-        <Sticker color="pea" size="md" tilt={6}>
-          Best pick
-        </Sticker>
+        <LandingSticker key={store.store_id} delay={0.2}>
+          <Sticker color="pea" size="md" tilt={6}>
+            Best pick
+          </Sticker>
+        </LandingSticker>
       </span>
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-[20px] font-bold leading-tight text-ink">{store.name}</span>
@@ -178,7 +175,18 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
 
           <ol aria-busy={busy} className={`mt-6 transition-opacity ${busy ? 'opacity-60' : ''}`}>
             {ranked.map((s, i) => (
-              <motion.li key={s.store_id} layout transition={{ type: 'spring', damping: 26, stiffness: 260 }} className={i === 0 ? 'mb-4' : ''}>
+              // rows appear with a 40 ms stagger (fade + 6px rise); re-ranking is a 360 ms FLIP
+              <motion.li
+                key={s.store_id}
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  layout: { duration: 0.36, ease: [0.22, 1, 0.36, 1] },
+                  default: { duration: 0.26, ease: [0.22, 1, 0.36, 1], delay: i * 0.04 },
+                }}
+                className={i === 0 ? 'mb-4' : ''}
+              >
                 {i === 0 ? (
                   <BestCard store={s} ranked={ranked} ctx={ctx} onReceipt={() => onReceipt(s.store_id)} />
                 ) : (

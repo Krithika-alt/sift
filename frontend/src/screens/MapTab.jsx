@@ -98,8 +98,11 @@ export default function MapTab({ stores, user, demo }) {
           {stores.map((s, i) => {
             const on = s.store_id === selected
             return (
-              <li
+              <motion.li
                 key={s.store_id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1], delay: i * 0.04 }}
                 data-store={s.store_id}
                 className={`-mx-2 rounded-[4px] px-2 transition-colors ${on ? 'pb-3' : ''}`}
                 style={{ background: on ? wash(storeColor(s.store_id), 14, 'var(--eggshell)') : undefined, borderBottom: on ? '1px solid transparent' : '1px solid #E6DCCB' }}
@@ -137,7 +140,7 @@ export default function MapTab({ stores, user, demo }) {
                     Get directions
                   </a>
                 )}
-              </li>
+              </motion.li>
             )
           })}
         </ul>

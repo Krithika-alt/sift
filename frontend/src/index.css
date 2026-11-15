@@ -156,3 +156,16 @@ body {
   z-index: 450; /* above tiles (200), below markers (600) */
   pointer-events: none;
 }
+
+/* Calm press: buttons and links scale to 0.98 (inline transforms, e.g. map pins, win). */
+@layer base {
+  button:not(:disabled):active,
+  a[href]:active {
+    transform: scale(0.98);
+  }
+  button,
+  a[href] {
+    transition-property: transform, opacity, background-color, color;
+    transition-duration: 120ms;
+  }
+}

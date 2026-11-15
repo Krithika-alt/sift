@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MotionConfig, motion } from 'framer-motion'
 import { askAgent, getProducts, health, nearbyStores, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs, Toast } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
@@ -39,6 +40,8 @@ const SLIDE_DELAY_MS = 450
 const SPLASH_MS = 1000
 const TAB_SCREENS = ['map', 'saved', 'me']
 const TOAST_MS = 2500
+// How deep each screen sits, for the direction of the screen-change motion.
+const DEPTH = { bag: 0, map: 0, saved: 0, me: 0, savedBag: 1, sifting: 1, results: 2, receipt: 3 }
 
 function rankBody(items, mode, budget, preferences, home) {
   const body = {
@@ -252,12 +255,20 @@ export default function App() {
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
   const savedOpen = pastBags.find((b) => b.at === savedAt)
   const tab = screen === 'savedBag' ? 'saved' : TAB_SCREENS.includes(screen) ? screen : 'bag'
+  // Going "back" (to a shallower screen) reverses the screen-change rise.
+  const prevScreen = useRef(screen)
+  const navDir = (DEPTH[screen] ?? 0) < (DEPTH[prevScreen.current] ?? 0) ? -1 : 1
+  useEffect(() => {
+    prevScreen.current = screen
+  }, [screen])
+
   // While a sheet is open the tab bar fades out (it keeps its space, so nothing jumps).
   const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen)
   // Map tab: stores only, no bag. Last rank response's store list, else the mock list; by distance.
   const mapStores = useMemo(() => nearbyStores(ranked, home), [ranked, home])
 
   return (
+    <MotionConfig reducedMotion="user">
     <BuddyContext.Provider value={buddy}>
       <SheetHostContext.Provider value={sheetHost}>
       <div className="flex min-h-dvh items-center justify-center gap-16 bg-eggshell min-[500px]:grain">
@@ -279,6 +290,14 @@ export default function App() {
                 ref={scrollRef}
                 className={`grain no-scrollbar isolate min-h-0 flex-1 overscroll-contain ${screen === 'map' ? 'overflow-hidden' : 'overflow-y-auto'}`}
               >
+                {/* screen change: fade + rise 8px, 260 ms ease-out; going back, the reverse */}
+                <motion.div
+                  key={screen}
+                  className="h-full"
+                  initial={{ opacity: 0, y: 8 * navDir }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                >
                 {screen === 'bag' && (
                   <Bag
                     bag={bag}
@@ -361,6 +380,7 @@ export default function App() {
                 {screen === 'me' && (
                   <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} initialEdit={meEdit} onEditOpened={() => setMeEdit(null)} />
                 )}
+                </motion.div>
               </main>
 
               {showTabs && <TabBar active={tab} onChange={changeTab} hidden={sheetCount > 0} />}
@@ -397,5 +417,6 @@ export default function App() {
       </div>
       </SheetHostContext.Provider>
     </BuddyContext.Provider>
+    </MotionConfig>
   )
 }

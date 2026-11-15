@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import PastBagCard from '../components/PastBagCard.jsx'
 import { MyBuddy } from '../components/brand.jsx'
 
@@ -43,7 +44,14 @@ export default function Saved({ pastBags, onOpen, onNew }) {
         // two columns, 12 gap, edges on the 20px margins (each bag stretches from 156 to its column width)
         <div className="mt-6 grid grid-cols-2 gap-3">
           {pastBags.map((pb, i) => (
-            <PastBagCard key={pb.at} pb={pb} index={i} fill onOpen={() => onOpen(pb.at)} />
+            <motion.div
+              key={pb.at}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1], delay: i * 0.04 }}
+            >
+              <PastBagCard pb={pb} index={i} fill onOpen={() => onOpen(pb.at)} />
+            </motion.div>
           ))}
         </div>
       )}

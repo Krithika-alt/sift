@@ -116,8 +116,10 @@ export function IdleBuddy({ id, size, say, style }) {
 }
 
 /** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
-export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)', splotch = false, say }) {
+export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)', splotch = false, say: sayProp }) {
   const buddy = useBuddy()
+  // a new spoken line tilts the head once
+  const say = sayProp ?? (typeof children === 'string' ? children : undefined)
   return (
     <div className="flex items-center gap-3">
       {splotch ? <BuddySplotch size={size} say={say} /> : <IdleBuddy id={buddy.id} size={size} say={say} />}

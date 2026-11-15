@@ -157,7 +157,7 @@ export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelec
         className="absolute inset-0"
         initial={false}
         animate={{ x: `${(dx / W) * 100}%`, y: `${(dy / H) * 100}%` }}
-        transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+        transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
       >
       <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 block h-full w-full" style={{ overflow: 'visible' }} aria-hidden="true">
         <rect x={-W} y={-H} width={W * 3} height={H * 3} fill="var(--eggshell)" />

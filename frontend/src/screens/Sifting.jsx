@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BuddyLine } from '../components/brand.jsx'
+import { BuddyLine, LandingSticker } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
 import Wordmark from '../components/Wordmark.jsx'
 import { money, storeColor } from '../lib/stores.js'
@@ -71,9 +71,9 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
             {lines.slice(0, shown).map((s) => (
               <motion.li
                 key={s.store_id}
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                 className="relative flex items-center gap-2 py-1.5"
               >
                 <Sticker shape="round" size="sm" color={storeColor(s.store_id)} tilt={s.rank % 2 ? 5 : -5}>
@@ -83,16 +83,11 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
                 <span className="dotted-leader mb-[3px] self-end !transform-none" aria-hidden="true" />
                 <span className="font-mono text-[14px] font-bold">{money(s.total_basket_price)}</span>
                 {s.rank === 1 && (
-                  <motion.span
-                    className="absolute -top-3 right-14"
-                    initial={{ scale: 2, opacity: 0, rotate: -20 }}
-                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                    transition={{ type: 'spring', damping: 12, stiffness: 400, delay: 0.1 }}
-                  >
+                  <LandingSticker className="absolute -top-3 right-14" delay={0.1}>
                     <Sticker color="pea" size="sm" tilt={-6}>
                       Best pick
                     </Sticker>
-                  </motion.span>
+                  </LandingSticker>
                 )}
               </motion.li>
             ))}

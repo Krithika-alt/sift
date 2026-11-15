@@ -21,7 +21,7 @@ export default function BuddyPicker({ open, current, onPick, onClose }) {
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="no-scrollbar flex-1 overflow-y-auto px-5 pt-14">
             <div className="flex items-center justify-between">
