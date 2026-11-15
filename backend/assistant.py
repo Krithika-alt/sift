@@ -236,6 +236,8 @@ def pair_answer(question: str, data: dict) -> dict | None:
     """'At <store>, is <product A> cheaper than <product B>?' -> both prices and the gap."""
     stores, products, latest = _index(data)
     q = question.lower()
+    if not (("store-brand" in q or "store brand" in q) and ("name-brand" in q or "name brand" in q)):
+        return None  # only for explicit store-brand vs name-brand questions
     named = [p for p in products.values() if (p.get("name") or "").lower() in q]
     store = _find_named_store(question, list(stores.values()))
     if len(named) < 2 or not store:

@@ -96,3 +96,26 @@ def test_stock_question_and_unknown_product():
     d = _data()
     assert answer_question("Which stores do not have Large eggs, 12 ct in stock?", None, d)["answer"]
     assert "couldn't tell" in answer_question("cheapest unobtainium?", None, d)["answer"]
+
+
+def test_pair_question_gives_both_prices():
+    d = _data()
+    a = d["products"][0]
+    rows = [r for r in d["prices"] if r["product_id"] == a["product_id"] and r["in_stock"]]
+    store = next(s for s in d["stores"] if s["store_id"] == rows[0]["store_id"])
+    b = dict(a, product_id="x_brand", name=a["name"] + " (Brandy)")
+    d2 = _data([b], [dict(r, product_id="x_brand", price=r["price"] + 1.0) for r in rows])
+    q = f"At {store['name']}, is the store-brand {a['name']} cheaper than the name-brand {b['name']}? Give both prices."
+    r = answer_question(q, None, d2)
+    assert f"{rows[0]['price']:.2f}" in r["answer"] and f"{rows[0]['price'] + 1.0:.2f}" in r["answer"]
+
+
+def test_nested_product_names_do_not_trigger_pair_answer():
+    d = _data()
+    a = d["products"][0]
+    b = dict(a, product_id="x_brand", name=a["name"] + " (Brandy)")
+    rows = [r for r in d["prices"] if r["product_id"] == a["product_id"] and r["in_stock"]]
+    d2 = _data([b], [dict(r, product_id="x_brand", price=r["price"] + 1.0) for r in rows])
+    s1, s2 = [s["name"] for s in d["stores"] if s["store_id"] in {rows[0]["store_id"], rows[1]["store_id"]}][:2]
+    r = answer_question(f"Is {b['name']} cheaper at {s1} or {s2}, and by how much?", None, d2)
+    assert "cheapest" in r["answer"].lower() or "all stores" in r["answer"].lower()
