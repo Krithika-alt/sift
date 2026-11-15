@@ -1,43 +1,16 @@
-// Turns what the user types into either bag items or "needs" (preferences / budget).
-
-const DIET_WORDS = [
-  'vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'gluten free', 'dairy-free', 'dairy free',
-  'nut-free', 'nut free', 'halal', 'kosher', 'organic', 'low sodium', 'high protein', 'keto',
-]
+// Turns what the user types into bag items. Needs (budget, distance, diet) are matched first,
+// in lib/needs.js; any other sentence ("I'm on a cut") is 'other' and never becomes a sticker.
 
 const SENTENCE_START = /^(i'?m|i am|im|no|only|must|prefer|please|keep|nothing|without|i don'?t|i prefer|we don'?t)\b/i
 const LIST_START = /^(i need|i want|i'?d like|we need|get|buy|grab|pick up|add)\b/i
-const BUDGET = /(?:under|below|less than|max(?:imum)?|budget(?: of| is)?|at most|within)\s*\$?\s*(\d+(?:\.\d{1,2})?)|\$\s*(\d+(?:\.\d{1,2})?)/i
 
-/**
- * Returns one of:
- *  { kind: 'budget', budget: 15 }
- *  { kind: 'preference', preference: 'vegetarian' }
- *  { kind: 'items', items: ['eggs', 'milk'] }
- */
+/** -> { kind: 'items', items: ['eggs', 'milk'] } | { kind: 'other' } | null */
 export function parseEntry(raw) {
   const text = raw.trim()
   if (!text) return null
-
-  const b = text.match(BUDGET)
-  if (b) {
-    const budget = Number(b[1] ?? b[2])
-    if (budget > 0) return { kind: 'budget', budget }
-  }
-
   const lower = text.toLowerCase()
-  const words = lower.split(/\s+/)
-  // Lists ("milk, eggs and bread", "I need ...") are items, however long.
   const isList = LIST_START.test(lower) || /,|;|\band\b/.test(lower)
-  const diet = DIET_WORDS.find((w) => lower.includes(w))
-  if (diet && !isList && (SENTENCE_START.test(lower) || words.length <= 2)) {
-    return { kind: 'preference', preference: diet.replace(' ', '-') }
-  }
-  if (!isList && SENTENCE_START.test(lower)) {
-    const preference = lower.replace(/^(i'?m|i am|im)\s+/, '').replace(/[.!?]+$/, '')
-    return { kind: 'preference', preference }
-  }
-
+  if (!isList && SENTENCE_START.test(lower)) return { kind: 'other' }
   const items = text.split(',').map((s) => s.trim()).filter(Boolean)
   return { kind: 'items', items }
 }
@@ -127,7 +100,7 @@ export function autoName(items) {
 }
 
 // Saved bags are saved on purpose (the bookmark on the Bag, or "+" on Saved), newest first, max 12.
-// { at (id), name, renamed, items, budget, budgetSet, preferences, winner? }
+// { at (id), name, renamed, items, budget, budgetSet, preferences, dietSet, winner? }  (budget null = no budget)
 // winner = { store_id, total, saved } from the last sift of that bag (saved = dollars below the nearby average).
 
 /** Same contents = same bag: the confirmed rows and their quantities. */
@@ -153,13 +126,14 @@ export function saveBag(bag) {
     budget: bag.budget,
     budgetSet: Boolean(bag.budgetSet),
     preferences: bag.preferences ?? [],
+    dietSet: Boolean(bag.dietSet),
   }
   return { list: writePastBags([entry, ...old].slice(0, MAX_PAST)), entry }
 }
 
 /** "+" on Saved: a new, empty saved bag. */
 export const newSavedBag = (budget) => {
-  const entry = { at: Date.now(), name: 'New bag', renamed: true, items: [], budget, budgetSet: false, preferences: [] }
+  const entry = { at: Date.now(), name: 'New bag', renamed: true, items: [], budget, budgetSet: false, preferences: [], dietSet: false }
   return { list: writePastBags([entry, ...loadPastBags()].slice(0, MAX_PAST)), entry }
 }
 

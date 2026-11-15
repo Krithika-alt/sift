@@ -9,13 +9,13 @@ export const HOME_BASES = [
   { id: 'grainger', label: 'Grainger Hall', lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon },
   { id: 'union', label: 'Memorial Union', lat: 43.0761, lon: -89.3999 },
 ]
-export const DIETS = ['Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free']
+export { DIETS } from './needs.js' // ids: vegetarian, vegan, gluten-free, dairy-free
 
 export const DEFAULT_PROFILE = {
   buddyId: null, // null until the first-launch picker
   name: '',
   home: HOME_BASES[0], // or { id: 'geo', label: 'Your location', lat, lon }
-  diet: [],
+  diet: [], // diet ids (older profiles stored labels; toDietIds reads both)
   budget: DEFAULT_BUDGET,
   defaultSort: DEFAULT_MODE,
 }

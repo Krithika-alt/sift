@@ -4,8 +4,8 @@
 // <DirtPatch width={150} />  a soft patch of soil the buddy "stands" in, with two tiny sprouts.
 //   Place it behind and below the buddy (buddy overlaps its top half). Flat, low opacity, no shadow.
 //
-// <MiniBag color="#9DBE5A" width={156} height={176}>...content...</MiniBag>
-//   A little paper grocery bag shape (folded top) in a pop color, for saved bags.
+// <MiniBag color={BAG_COLORS[i % 5]} width={156} height={176}>...content...</MiniBag>
+//   A flat paper bag with a torn top in a light pop color, for saved bags.
 
 import React from 'react';
 
@@ -35,29 +35,35 @@ export function DirtPatch({ width = 150, style }) {
 }
 
 export function MiniBag({ color = '#9DBE5A', width = 156, height = 176, children, style, ...rest }) {
-  // Paper bag silhouette: folded lip at the top, slightly tapered body.
+  // Flat, printed paper bag: one solid fill and the same zigzag torn top as the main bag.
+  // No lip, no creases, no shading: 2D like everything else.
+  const teeth = [];
+  const step = 10;
+  for (let x = 0; x <= width; x += step) teeth.push(`L${x} ${(x / step) % 2 ? 7 : 0}`);
+  const top = `M0 10 ${teeth.join(' ')} L${width} 10 Z`;
   return (
     <div {...rest} style={{ position: 'relative', width, height, ...style }}>
-      <svg
-        aria-hidden="true"
-        width={width}
-        height={height}
-        viewBox="0 0 156 176"
-        preserveAspectRatio="none"
-        style={{ position: 'absolute', inset: 0, filter: 'url(#sift-sticker-edge)' }}
-      >
-        {/* body */}
-        <path d="M10 30 L146 30 L150 172 L6 172 Z" fill={color} opacity="0.32" />
-        {/* folded lip, a touch darker */}
-        <path d="M14 14 L142 14 L146 34 L10 34 Z" fill={color} opacity="0.5" />
-        {/* side creases */}
-        <path d="M30 40 L28 168 M126 40 L128 168" stroke="#2B1D18" strokeWidth="1" opacity="0.08" />
+      <svg aria-hidden="true" width={width} height="10" viewBox={`0 0 ${width} 10`} style={{ display: 'block' }}>
+        <path d={top} fill={color} />
       </svg>
-      <div style={{ position: 'relative', height: '100%', boxSizing: 'border-box', padding: '46px 16px 14px 16px', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          position: 'relative',
+          height: height - 10,
+          boxSizing: 'border-box',
+          background: color,
+          padding: '14px 16px 14px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {children}
       </div>
     </div>
   );
 }
+
+// Pop colors for saved bags, pre-mixed light so ink text stays readable (flat, not transparent).
+export const BAG_COLORS = ['#CFE0A8', '#F6E2A0', '#C9D8F0', '#F8D2D9', '#F7C9A1'];
 
 export default DirtPatch;

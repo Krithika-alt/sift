@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { motion, useAnimation } from 'framer-motion'
 import { DemoBadge, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
+import RadiusPills from '../components/RadiusPills.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { directionsUrl, storeColor, walkMinutes } from '../lib/stores.js'
 
@@ -18,23 +19,13 @@ export function ArrowIcon({ size = 22 }) {
   )
 }
 
-function TargetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="6.5" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
-    </svg>
-  )
-}
-
 /**
  * "Stores near you": nothing to do with the bag. A real map you can drag and zoom, same-size
  * numbered pins, and an eggshell sheet (280px, drag to 520px) listing stores by distance.
  * Tapping a pin or row tints the row in the store's color, pans the map, and shows a compact
- * "Get directions" pill under the name.
+ * "Get directions" pill under the name. The radius pills at the top of the sheet set the circle.
  */
-export default function MapTab({ stores, user, demo }) {
+export default function MapTab({ stores, user, demo, radius, onRadius }) {
   const [selected, setSelected] = useState(null)
   const controls = useAnimation()
   const [expanded, setExpanded] = useState(false)
@@ -53,25 +44,19 @@ export default function MapTab({ stores, user, demo }) {
 
   return (
     <div className="relative h-full overflow-hidden">
-      <LeafletMap ref={mapRef} stores={stores} user={user} selectedId={selected} onSelect={pick} full padBottom={SHEET_MIN} fallbackHeight={760} className="absolute inset-0" />
+      <LeafletMap ref={mapRef} stores={stores} user={user} radius={radius} selectedId={selected} onSelect={pick} full wheelZoom padBottom={SHEET_MIN} fallbackHeight={760} className="absolute inset-0" />
 
-      {/* top area: title left, recenter right (no bar) */}
+      {/* top area: title left (the zoom and recenter stack sits at the right edge, above the sheet) */}
       <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex items-center justify-between px-5">
         <h1 data-map-avoid className="pointer-events-auto relative -ml-2 px-2 font-display text-[28px] leading-[44px] text-ink">
           <span aria-hidden="true" className="absolute inset-x-0 inset-y-1 -z-10 rounded-[2px] bg-eggshell" style={{ filter: 'url(#sift-sticker-edge)' }} />
           Stores near you
         </h1>
-        <span data-map-avoid className="pointer-events-auto flex items-center gap-2">
-          {demo && <DemoBadge />}
-          <button
-            type="button"
-            onClick={() => mapRef.current?.recenter()}
-            aria-label="Recenter map"
-            className="flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-ink bg-eggshell text-ink active:scale-[0.98]"
-          >
-            <TargetIcon />
-          </button>
-        </span>
+        {demo && (
+          <span data-map-avoid className="pointer-events-auto">
+            <DemoBadge />
+          </span>
+        )}
       </div>
 
       <motion.section
@@ -93,7 +78,10 @@ export default function MapTab({ stores, user, demo }) {
         >
           <span className="mt-2 h-1 w-9 rounded-full bg-muted/50" />
         </button>
-        <p className="shrink-0 pt-1 text-[14px] font-semibold text-muted">{stores.length} nearby · closest first</p>
+        <RadiusPills value={radius} onChange={onRadius} className="shrink-0" />
+        <p className="shrink-0 pt-1 text-[14px] font-semibold text-muted">
+          {stores.length ? `${stores.length} within ${radius} mi · closest first` : `No stores within ${radius} mi. Try a bigger circle.`}
+        </p>
         <ul ref={listRef} className="no-scrollbar -mx-5 mt-2 min-h-0 flex-1 overflow-y-auto px-5 pb-6" onPointerDownCapture={(e) => expanded && e.stopPropagation()}>
           {stores.map((s, i) => {
             const on = s.store_id === selected

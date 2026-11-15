@@ -5,13 +5,16 @@ import 'leaflet/dist/leaflet.css'
 import { storeColor } from '../lib/stores.js'
 import PaperMap, { LABELS } from './PaperMap.jsx'
 import Sticker from './Sticker.jsx'
+import { MAP_STYLE, TILE_ATTRIBUTION } from './mapStyle.js'
 
-// Light, label-free basemap (no API key), recolored to paper in CSS (.paper-tiles in index.css).
-// CARTO's basemaps now return "API KEY REQUIRED" tiles, so this uses Esri's Light Gray Base.
-const TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
-const ATTRIBUTION = 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'
 const PIN_CLEAR = 28
 const FAIL_LIMIT = 4
+const LOAD_TIMEOUT_MS = 9000
+const MIN_ZOOM = 12
+const MAX_ZOOM = 17
+const MI_TO_M = 1609.34
+const CIRCLE_MS = 300
+const PEA = '#9DBE5A'
 
 /** Label on a small eggshell paper scrap: rough edge on the scrap only, text stays crisp. */
 function Scrap({ size = 12, tilt = 0, children }) {
@@ -25,64 +28,159 @@ function Scrap({ size = 12, tilt = 0, children }) {
   )
 }
 
+function TargetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="6.5" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
+    </svg>
+  )
+}
+
+// + and - : 40px, eggshell, 1.5px line border, Karla 600 18.
+function ZoomButton({ label, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-line bg-eggshell text-[18px] font-semibold leading-none text-ink"
+    >
+      {children}
+    </button>
+  )
+}
+
 const divIcon = (cls = '') => L.divIcon({ className: `sift-marker ${cls}`, html: '', iconSize: null })
 
+// The circle's bounds, from its center and radius in miles.
+function circleBounds(lat, lon, mi) {
+  const dLat = mi / 69.0
+  const dLon = mi / (69.0 * Math.cos((lat * Math.PI) / 180))
+  return L.latLngBounds([lat - dLat, lon - dLon], [lat + dLat, lon + dLon])
+}
+
 /**
- * A real, movable map: drag to pan, pinch or double-tap to zoom (wheel zoom off so the page
- * scrolls). Store pins are numbered Stickers; place labels sit on paper scraps and hide whenever
- * they would cross the map edge or sit within 28px of a pin. Falls back to the SVG paper map
- * if the tiles can't load.
+ * A real, movable map: drag to pan, pinch, double-tap or box to zoom (12 to 17), the wheel only
+ * where `wheelZoom` is on. Free vector tiles (OpenFreeMap) drawn by MapLibre in our paper colors:
+ * blue water, green parks, cream streets, no labels. The search radius is a soft pea circle around
+ * the user; changing it animates the circle (300 ms) and fits the map to it. Store pins are numbered
+ * Stickers; place labels sit on paper scraps and hide when they'd cross the edge, a pin or the
+ * controls. Falls back to the SVG paper map if the tiles can't load.
  *
- * ref: { recenter() }   padBottom: px hidden under a sheet (keeps pins in the open area)
+ * ref: { recenter() }   padTop / padBottom: px covered by the header / a sheet
  */
 const LeafletMap = forwardRef(function LeafletMap(
-  { stores, user, selectedId, onSelect, height = 300, full = false, padBottom = 0, className = '', fallbackHeight },
+  { stores, user, radius = 2, selectedId, onSelect, height = 300, full = false, wheelZoom = false, padTop = 108, padBottom = 0, className = '', fallbackHeight },
   ref,
 ) {
   const box = useRef(null)
   const map = useRef(null)
+  const circle = useRef(null)
+  const shownRadius = useRef(radius)
   const [els, setEls] = useState({ pins: [], labels: [], you: null })
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
 
-  const fit = (animate = false) => {
+  const fitRadius = (animate = false, r = radius) => {
     const m = map.current
     if (!m) return
-    const pts = [[user.lat, user.lon], ...stores.map((s) => [s.lat, s.lon])]
-    m.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [36, 64], paddingBottomRight: [36, 36 + padBottom], maxZoom: 15, animate })
+    const opts = { paddingTopLeft: [24, padTop], paddingBottomRight: [24, 24 + padBottom], maxZoom: MAX_ZOOM }
+    const b = circleBounds(user.lat, user.lon, r)
+    if (animate) m.flyToBounds(b, { ...opts, duration: CIRCLE_MS / 1000, easeLinearity: 0.5 })
+    else m.fitBounds(b, { ...opts, animate: false })
   }
-  useImperativeHandle(ref, () => ({ recenter: () => fit(true) }))
+  useImperativeHandle(ref, () => ({ recenter: () => fitRadius(true) }))
 
-  // Create the map once.
+  // Create the map once; the vector basemap loads on demand (keeps it out of the first bundle).
   useEffect(() => {
     if (offline || !box.current) return
     const m = L.map(box.current, {
       zoomControl: false,
       attributionControl: true,
       dragging: true,
-      scrollWheelZoom: false,
+      scrollWheelZoom: wheelZoom,
       touchZoom: true,
       doubleClickZoom: true,
+      boxZoom: true,
       tap: true,
-      zoomSnap: 1, // whole zoom levels: no hairline seams between blended tiles
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      zoomSnap: 0.25,
+      zoomDelta: 1,
     })
     map.current = m
     m.attributionControl.setPrefix(false)
-    let ok = 0
-    let failed = 0
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18, className: 'paper-tiles' })
-      .on('tileload', () => ok++)
-      .on('tileerror', () => {
-        failed++
-        if (!ok && failed >= FAIL_LIMIT) setOffline(true)
-      })
-      .addTo(m)
     m.setView([user.lat, user.lon], 14)
+
+    let cancelled = false
+    let ok = false
+    let failed = 0
+    const giveUp = setTimeout(() => !ok && !cancelled && setOffline(true), LOAD_TIMEOUT_MS)
+    Promise.all([import('maplibre-gl'), import('@maplibre/maplibre-gl-leaflet'), import('maplibre-gl/dist/maplibre-gl.css')])
+      .then(() => {
+        if (cancelled) return
+        const gl = L.maplibreGL({ style: MAP_STYLE, attribution: TILE_ATTRIBUTION, interactive: false }).addTo(m)
+        gl.getContainer().classList.add('paper-tiles')
+        const glMap = gl.getMaplibreMap()
+        glMap.on('load', () => {
+          ok = true
+        })
+        glMap.on('error', () => {
+          failed++
+          if (!ok && failed >= FAIL_LIMIT && !cancelled) setOffline(true)
+        })
+      })
+      .catch(() => !cancelled && setOffline(true)) // no WebGL, or the chunk failed to load
     return () => {
+      cancelled = true
+      clearTimeout(giveUp)
       m.remove()
       map.current = null
+      circle.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offline])
+
+  // The radius circle: pea fill at 8%, 1.5px pea outline, under the pins.
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    const c = L.circle([user.lat, user.lon], { radius: shownRadius.current * MI_TO_M, color: PEA, weight: 1.5, fillColor: PEA, fillOpacity: 0.08, interactive: false }).addTo(m)
+    circle.current = c
+    fitRadius(false, shownRadius.current)
+    return () => {
+      c.remove()
+      circle.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline, user.lat, user.lon])
+
+  // Changing the radius animates the circle (300 ms) and fits the map to it.
+  useEffect(() => {
+    const c = circle.current
+    const from = shownRadius.current
+    shownRadius.current = radius
+    if (!c || from === radius) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      c.setRadius(radius * MI_TO_M)
+      fitRadius(false)
+      return
+    }
+    fitRadius(true)
+    let raf
+    const t0 = performance.now()
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / CIRCLE_MS)
+      const e = 1 - (1 - k) ** 3 // ease-out
+      c.setRadius((from + (radius - from) * e) * MI_TO_M)
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radius])
 
   // Markers: pins, labels, and the user dot. React renders into each marker's element.
   useEffect(() => {
@@ -99,22 +197,21 @@ const LeafletMap = forwardRef(function LeafletMap(
     })
     const youMk = L.marker([user.lat, user.lon], { icon: divIcon('sift-you'), interactive: false, keyboard: false, zIndexOffset: 500 }).addTo(layer)
     setEls({ pins, labels, you: youMk.getElement() })
-    fit(false)
     return () => {
       layer.remove()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stores, user.lat, user.lon, full, offline])
 
-  // Hide labels that would cross the map edge or sit under a pin.
+  // Hide labels that would cross the map edge, sit under a pin, or under the header and controls.
   useEffect(() => {
     const m = map.current
     if (!m || !els.labels.length) return
     const check = () => {
+      if (!box.current) return
       const frame = box.current.getBoundingClientRect()
       const bottom = frame.bottom - padBottom
       const pinPts = els.pins.map((p) => p.el.getBoundingClientRect()).map((r) => [r.left + r.width / 2, r.top + r.height / 2])
-      // things drawn over the map (title, buttons) that labels must not sit under
       const avoid = [...document.querySelectorAll('[data-map-avoid]')].map((e) => e.getBoundingClientRect())
       const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
       for (const l of els.labels) {
@@ -127,10 +224,10 @@ const LeafletMap = forwardRef(function LeafletMap(
       }
     }
     const t = setTimeout(check, 0)
-    m.on('move zoom resize', check)
+    m.on('move zoom resize zoomend moveend', check)
     return () => {
       clearTimeout(t)
-      m.off('move zoom resize', check)
+      m.off('move zoom resize zoomend moveend', check)
     }
   }, [els, padBottom])
 
@@ -139,18 +236,39 @@ const LeafletMap = forwardRef(function LeafletMap(
     const m = map.current
     const s = stores.find((x) => x.store_id === selectedId)
     if (!m || !s) return
-    const pt = m.project([s.lat, s.lon], m.getZoom()).add([0, padBottom / 2])
+    const pt = m.project([s.lat, s.lon], m.getZoom()).add([0, (padBottom - padTop + 56) / 2])
     m.panTo(m.unproject(pt, m.getZoom()), { animate: true, duration: 0.4 })
-  }, [selectedId, stores, padBottom])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
 
   if (offline) {
     return <PaperMap stores={stores} user={user} sizes={Object.fromEntries(stores.map((s) => [s.store_id, 'md']))} selectedId={selectedId} onSelect={onSelect} height={fallbackHeight ?? height} full={full} className={className} />
   }
 
+  const abs = className.includes('absolute')
   return (
-    <div className={`isolate overflow-hidden bg-eggshell ${className.includes('absolute') ? '' : 'relative'} ${className}`} style={className.includes('absolute') ? undefined : { height }}>
-      <div ref={box} className="paper-map h-full w-full" role="region" aria-label={`Map of ${stores.length} stores near you`} />
+    <div className={`isolate overflow-hidden bg-eggshell ${abs ? '' : 'relative'} ${className}`} style={abs ? undefined : { height }}>
+      <div ref={box} className="paper-map h-full w-full" role="region" aria-label={`Map of ${stores.length} stores within ${radius} miles`} />
       <span aria-hidden="true" className="paper-grain grain" />
+
+      {/* zoom stack at the right edge: +, -, then recenter */}
+      <div data-map-avoid className="absolute right-5 z-[700] flex flex-col items-center gap-2" style={{ bottom: padBottom + 16 }}>
+        <ZoomButton label="Zoom in" onClick={() => map.current?.zoomIn()}>
+          +
+        </ZoomButton>
+        <ZoomButton label="Zoom out" onClick={() => map.current?.zoomOut()}>
+          −
+        </ZoomButton>
+        <button
+          type="button"
+          onClick={() => fitRadius(true)}
+          aria-label="Recenter map"
+          className="mt-1 flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-ink bg-eggshell text-ink"
+        >
+          <TargetIcon />
+        </button>
+      </div>
+
       {els.pins.map((p) =>
         createPortal(
           <button

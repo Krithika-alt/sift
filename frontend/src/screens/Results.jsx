@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BackButton, BuddyLine, DemoBadge, LandingSticker, SectionLabel, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
+import RadiusPills from '../components/RadiusPills.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
@@ -113,16 +115,25 @@ function RunnerRow({ store, n, ctx, onReceipt }) {
   )
 }
 
-export default function Results({ ranked, mode, onMode, budget, demo, fellBack, busy, slapId, onReceipt, onEditBag, onAsk, user, bagSummary }) {
+const fmtBudget = (b) => `$${Number.isInteger(b) ? b : Number(b).toFixed(2)}`
+
+/** ranked: only the stores inside the radius (App filters by distance_miles). over: dollars over budget. */
+export default function Results({ ranked, total, radius, onRadius, over = 0, mode, onMode, budget, demo, fellBack, busy, slapId, onReceipt, onEditBag, onAsk, user, bagSummary }) {
   const buddy = useBuddy()
   const allSimulated = ranked.every((s) => priceCounts(s).real === 0)
   const bestUnitId = ranked.reduce((a, s) => (!a || s.unit_price_savings_pct > a.unit_price_savings_pct ? s : a), null)?.store_id
   const ctx = { slapId, allSimulated, bestUnitId }
+  const empty = ranked.length === 0 && total > 0
+  // Nothing inside the circle: the 3 mi pill pulses once (again each time the circle comes up empty).
+  const [pulse, setPulse] = useState(0)
+  useEffect(() => {
+    if (empty) setPulse((n) => n + 1)
+  }, [empty, radius])
 
   return (
     <div className="min-h-full pb-6">
       <div className="relative">
-        <LeafletMap stores={ranked} user={user} height={300} />
+        <LeafletMap stores={ranked} user={user} radius={radius} height={300} padTop={16} />
         <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex h-11 items-center justify-between px-5">
           <span data-map-avoid>
             <BackButton onClick={onEditBag} label="Back to my bag" />
@@ -141,7 +152,9 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
 
       {/* the map simply ends; content sits on eggshell */}
       <div className="relative z-10 border-t-[1.5px] border-line">
-        <div className="px-5 pt-6">
+        {/* search radius, just under the map */}
+        <RadiusPills value={radius} onChange={onRadius} pulse={pulse} className="px-5 pt-2" />
+        <div className="px-5 pt-4">
           <div role="radiogroup" aria-label="Sort stores" className="flex rounded-[12px] border-[1.5px] border-ink p-1">
             {MODES.map((m) => {
               const on = m.id === mode
@@ -164,6 +177,15 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
             <BuddyLine size={56} text={22}>
               {fellBack ? (
                 "I can't reach the shelves right now. Showing saved prices."
+              ) : empty ? (
+                'Nothing that close. Try a bigger circle.'
+              ) : over > 0.005 ? (
+                <>
+                  Dug up your best deal.
+                  <span className="block">
+                    That's {money(over)} over your {fmtBudget(budget)}.
+                  </span>
+                </>
               ) : (
                 <>
                   Dug up your best deal.
@@ -195,8 +217,9 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
               </motion.li>
             ))}
           </ol>
-          {allSimulated && <p className="mt-3 text-[13px] text-muted">All prices here are simulated for the demo.</p>}
+          {allSimulated && ranked.length > 0 && <p className="mt-3 text-[13px] text-muted">All prices here are simulated for the demo.</p>}
 
+          {ranked.length > 0 && (
           <section aria-label={`Ask ${buddy.name}`} className="mt-6">
             <SectionLabel>Ask {buddy.name}</SectionLabel>
             <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5">
@@ -210,6 +233,7 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
               ))}
             </div>
           </section>
+          )}
         </div>
       </div>
     </div>

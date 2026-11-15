@@ -20,6 +20,7 @@ import {
   toRankItem,
   updateSavedBag,
 } from './lib/bag.js'
+import { applyNeeds, bagBudget, bagDiets, loadRadius, saveRadius, withinRadius } from './lib/needs.js'
 import { BuddyContext, buddyOf, loadProfile, saveProfile } from './lib/profile.js'
 import { savingsVsNearby } from './lib/stores.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
@@ -49,11 +50,14 @@ function rankBody(items, mode, budget, preferences, home) {
     // Confirmed rows only, as {text: <product name>, quantity} (the rank_items shape). Dashed rows stay out.
     items: items.filter(isRankable).map(toRankItem),
     weights: MODES.find((m) => m.id === mode).weights,
-    budget,
   }
+  if (budget != null) body.budget = budget // "No budget": left out (the contract's budget is optional)
   if (preferences.length) body.preferences = preferences
   return body
 }
+
+// What the over-budget mark belongs to: it lasts until the bag changes.
+const bagKey = (b, budget) => JSON.stringify([b.items.filter(isRankable).map(toRankItem), budget])
 
 function friendlyError(err) {
   if (err?.status === 422) return 'Something in the bag looks off. Try editing it.'
@@ -69,7 +73,12 @@ export default function App() {
 
   const [screen, setScreen] = useState('bag') // bag | sifting | results | receipt | map | saved | me
   const [receiptFrom, setReceiptFrom] = useState('results')
-  const [bag, setBag] = useState({ items: DEMO_BASKET, budget: profile.budget, budgetSet: false, preferences: [] })
+  const [bag, setBag] = useState({ items: DEMO_BASKET, budget: profile.budget, budgetSet: false, preferences: [], dietSet: false })
+  // Search radius (miles): the map pills and the bag's distance sticker, both ways. localStorage.
+  const [radius, setRadiusState] = useState(loadRadius)
+  const setRadius = useCallback((r) => setRadiusState(saveRadius(r)), [])
+  const [rankedFor, setRankedFor] = useState(null) // bagKey of the bag the current ranking is for
+  const siftKey = useRef(null)
   const [mode, setMode] = useState(profile.defaultSort)
   const [products, setProducts] = useState([])
   const [pastBags, setPastBags] = useState(loadPastBags)
@@ -101,7 +110,12 @@ export default function App() {
   const reqId = useRef(0)
   const askId = useRef(0)
 
-  const budget = bag.budgetSet ? bag.budget : profile.budget
+  const budget = bagBudget(bag, profile) // null = no budget
+  const diets = bagDiets(bag, profile)
+  // Stores outside the circle drop out of the pins, the lists and the ranking (client side).
+  const shownRanked = useMemo(() => withinRadius(ranked, radius), [ranked, radius])
+  const best = shownRanked[0]
+  const over = rankedFor === bagKey(bag, budget) && budget != null && best ? Math.max(0, best.total_basket_price - budget) : 0
   const home = profile.home
   const place = home.id === 'geo' ? 'you' : home.label
   const fellBack = demo && !DEMO_MODE
@@ -132,9 +146,7 @@ export default function App() {
   // b: the bag to rank (defaults to the current bag); budget and diet resolve against the profile.
   async function rank(nextMode, b = bag) {
     const id = ++reqId.current
-    const bBudget = b.budgetSet ? b.budget : profile.budget
-    const prefs = [...new Set([...(b.preferences ?? []), ...profile.diet.map((d) => d.toLowerCase())])]
-    const { data, demo: wasDemo } = await rankStores(rankBody(b.items, nextMode, bBudget, prefs, home))
+    const { data, demo: wasDemo } = await rankStores(rankBody(b.items, nextMode, bagBudget(b, profile), bagDiets(b, profile), home))
     return id === reqId.current ? { ranked: data.ranked_stores, demo: wasDemo } : null
   }
 
@@ -143,15 +155,17 @@ export default function App() {
     setSiftRanked(null)
     setSiftError('')
     setScreen('sifting')
+    siftKey.current = bagKey(b, bagBudget(b, profile))
     try {
       const res = await rank(mode, b)
       if (!res) return
       setDemo(res.demo)
       setSiftedAt(new Date())
       setSiftRanked(res.ranked)
-      const best = res.ranked[0]
-      if (best) {
-        const winner = { store_id: best.store_id, total: best.total_basket_price, saved: Math.max(0, savingsVsNearby(best, res.ranked)) }
+      const inside = withinRadius(res.ranked, radius)
+      const top = inside[0]
+      if (top) {
+        const winner = { store_id: top.store_id, total: top.total_basket_price, saved: Math.max(0, savingsVsNearby(top, inside)) }
         setPastBags(recordWinner(b, winner))
       }
     } catch (err) {
@@ -174,7 +188,7 @@ export default function App() {
     setScreen('savedBag')
   }
   function saveCurrentBag() {
-    const { list, entry } = saveBag({ ...bag, budget })
+    const { list, entry } = saveBag({ ...bag, budget, preferences: diets })
     setPastBags(list)
     showToast({ text: `Saved as ${entry.name}`, action: { label: 'Rename', onClick: () => openSaved(entry.at, 'bag') } })
   }
@@ -183,12 +197,28 @@ export default function App() {
     setPastBags(list)
     openSaved(entry.at, 'saved')
   }
-  const asBag = (b) => ({ items: b.items.map(toItem), budget: b.budget ?? profile.budget, budgetSet: Boolean(b.budgetSet), preferences: b.preferences ?? [] })
+  const asBag = (b) => ({ items: b.items.map(toItem), budget: b.budget ?? null, budgetSet: Boolean(b.budgetSet), preferences: b.preferences ?? [], dietSet: Boolean(b.dietSet) })
 
   const finishSifting = useCallback(() => {
     setRanked(siftRanked)
+    setRankedFor(siftKey.current)
     setScreen('results')
   }, [siftRanked])
+
+  // The bag's needs: tap a sticker, or tell the buddy ("under $15", "walking distance", "I'm vegan").
+  const needs = {
+    budget,
+    radius,
+    diets,
+    over: over > 0,
+    onBudget: (b) => setBag((x) => ({ ...x, budget: b, budgetSet: true })),
+    onRadius: setRadius,
+    onDiets: (list) => setBag((x) => ({ ...x, preferences: list, dietSet: true })),
+    onParsed: (n) => {
+      setBag((x) => applyNeeds(x, n, bagDiets(x, profile)))
+      if (n.radius) setRadius(n.radius)
+    },
+  }
 
   async function changeMode(nextMode) {
     if (nextMode === mode) return
@@ -231,14 +261,14 @@ export default function App() {
   // Reopening the same question for the same ranking shows the pending or finished answer.
   async function askBuddy(question, force = false) {
     setAskOpen(true)
-    if (!force && ask && ask.question === question && ask.ranked === ranked && ask.status !== 'error') return
+    if (!force && ask && ask.question === question && ask.ranked === shownRanked && ask.status !== 'error') return
     const id = ++askId.current
-    setAsk({ question, ranked, status: 'loading', data: null })
+    setAsk({ question, ranked: shownRanked, status: 'loading', data: null })
     try {
-      const { data } = await askAgent({ question, ranking: { ranked_stores: ranked } })
-      if (id === askId.current) setAsk({ question, ranked, status: 'done', data })
+      const { data } = await askAgent({ question, ranking: { ranked_stores: shownRanked } })
+      if (id === askId.current) setAsk({ question, ranked: shownRanked, status: 'done', data })
     } catch {
-      if (id === askId.current) setAsk({ question, ranked, status: 'error', data: null })
+      if (id === askId.current) setAsk({ question, ranked: shownRanked, status: 'error', data: null })
     }
   }
 
@@ -252,7 +282,7 @@ export default function App() {
     setScreen(t)
   }
 
-  const receiptStore = ranked.find((s) => s.store_id === receiptId)
+  const receiptStore = shownRanked.find((s) => s.store_id === receiptId)
   const savedOpen = pastBags.find((b) => b.at === savedAt)
   const tab = screen === 'savedBag' ? 'saved' : TAB_SCREENS.includes(screen) ? screen : 'bag'
   // Going "back" (to a shallower screen) reverses the screen-change rise.
@@ -302,7 +332,7 @@ export default function App() {
                   <Bag
                     bag={bag}
                     setBag={setBag}
-                    budget={budget}
+                    needs={needs}
                     products={products}
                     pastBags={pastBags}
                     saved={savedMatch}
@@ -319,11 +349,15 @@ export default function App() {
                   />
                 )}
                 {screen === 'sifting' && (
-                  <Sifting ranked={siftRanked} error={siftError} demo={demo} onDone={finishSifting} onBack={() => setScreen('bag')} />
+                  <Sifting ranked={siftRanked && withinRadius(siftRanked, radius)} error={siftError} demo={demo} onDone={finishSifting} onBack={() => setScreen('bag')} />
                 )}
                 {screen === 'results' && (
                   <Results
-                    ranked={ranked}
+                    ranked={shownRanked}
+                    total={ranked.length}
+                    radius={radius}
+                    onRadius={setRadius}
+                    over={over}
                     mode={mode}
                     onMode={changeMode}
                     budget={budget}
@@ -335,13 +369,13 @@ export default function App() {
                     onEditBag={() => setScreen('bag')}
                     onAsk={askBuddy}
                     user={home}
-                    bagSummary={`${bag.items.filter(isRankable).length} items · $${budget}`}
+                    bagSummary={`${bag.items.filter(isRankable).length} items${budget == null ? '' : ` · $${budget}`}`}
                   />
                 )}
                 {screen === 'receipt' && receiptStore && (
                   <Receipt
                     store={receiptStore}
-                    ranked={ranked}
+                    ranked={shownRanked}
                     siftedAt={siftedAt}
                     demo={demo}
                     onBack={() => setScreen(receiptFrom)}
@@ -349,7 +383,7 @@ export default function App() {
                   />
                 )}
                 {screen === 'map' && (
-                  <MapTab stores={mapStores} user={home} demo={demo} />
+                  <MapTab stores={withinRadius(mapStores, radius)} user={home} demo={demo} radius={radius} onRadius={setRadius} />
                 )}
                 {screen === 'saved' && (
                   <Saved pastBags={pastBags} onOpen={(at) => openSaved(at, 'saved')} onNew={newBag} />
@@ -359,6 +393,9 @@ export default function App() {
                     key={savedOpen.at}
                     pb={savedOpen}
                     products={products}
+                    profile={profile}
+                    radius={radius}
+                    onRadius={setRadius}
                     onBack={() => setScreen(savedFrom)}
                     onChange={(patch) => setPastBags(updateSavedBag(savedOpen.at, patch))}
                     onRename={(name) => setPastBags(renamePastBag(savedOpen.at, name))}
@@ -378,7 +415,7 @@ export default function App() {
                   />
                 )}
                 {screen === 'me' && (
-                  <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} initialEdit={meEdit} onEditOpened={() => setMeEdit(null)} />
+                  <Me profile={profile} setProfile={setProfile} pastBags={pastBags} onChangeBuddy={() => setPickerOpen(true)} initialEdit={meEdit} onEditOpened={() => setMeEdit(null)} />
                 )}
                 </motion.div>
               </main>

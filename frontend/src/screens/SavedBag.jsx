@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import BagItems from '../components/BagItems.jsx'
 import { BackButton, PrimaryButton, SecondaryButton } from '../components/brand.jsx'
+import NeedStickers from '../components/NeedStickers.jsx'
 import Sheet from '../components/Sheet.jsx'
 import { autoName, isDashed, isRankable, toItem } from '../lib/bag.js'
+import { applyNeeds, bagBudget, bagDiets } from '../lib/needs.js'
 import { useBuddy } from '../lib/profile.js'
 
 function PencilIcon() {
@@ -17,7 +19,7 @@ function PencilIcon() {
  * One saved bag, opened from Saved (pushed, not the Bag tab). The name is an editable title;
  * the items are bag rows with steppers, remove and an add row. Every edit saves automatically.
  */
-export default function SavedBag({ pb, products, onBack, onChange, onRename, onSift, onUse, onDelete }) {
+export default function SavedBag({ pb, products, profile, radius, onRadius, onBack, onChange, onRename, onSift, onUse, onDelete }) {
   const buddy = useBuddy()
   const [draft, setDraft] = useState(() => ({ ...pb, items: pb.items.map(toItem), preferences: pb.preferences ?? [] }))
   const [editingName, setEditingName] = useState(false)
@@ -31,7 +33,7 @@ export default function SavedBag({ pb, products, onBack, onChange, onRename, onS
       first.current = false
       return
     }
-    onChange({ items: draft.items, budget: draft.budget, budgetSet: draft.budgetSet, preferences: draft.preferences })
+    onChange({ items: draft.items, budget: draft.budget, budgetSet: draft.budgetSet, preferences: draft.preferences, dietSet: draft.dietSet })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft])
 
@@ -87,12 +89,32 @@ export default function SavedBag({ pb, products, onBack, onChange, onRename, onS
           </button>
         )}
         <p className="text-[13px] text-muted">
-          {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'} · Budget <span className="font-mono font-bold">${draft.budget}</span> · saves as you edit
+          {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'} · saves as you edit
         </p>
+        {/* the same needs row as the Bag */}
+        <NeedStickers
+          budget={bagBudget(draft, profile)}
+          radius={radius}
+          diets={bagDiets(draft, profile)}
+          onBudget={(b) => setDraft((d) => ({ ...d, budget: b, budgetSet: true }))}
+          onRadius={onRadius}
+          onDiets={(list) => setDraft((d) => ({ ...d, preferences: list, dietSet: true }))}
+          className="mt-1"
+        />
       </div>
 
       <section aria-label={`Items in ${shownName}`} className="mt-6 rounded-[4px] border border-hair bg-receipt px-4 py-1">
-        <BagItems bag={draft} setBag={setDraft} products={products} inputId="saved-bag-input" placeholder="Add something" />
+        <BagItems
+          bag={draft}
+          setBag={setDraft}
+          products={products}
+          inputId="saved-bag-input"
+          placeholder="Add something"
+          onNeeds={(n) => {
+            setDraft((d) => applyNeeds(d, n, bagDiets(d, profile)))
+            if (n.radius) onRadius(n.radius)
+          }}
+        />
       </section>
 
       <div className="mt-6 space-y-3">

@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react'
 import BagItems from '../components/BagItems.jsx'
-import { BuddyLine, DemoBadge, LandingSticker, PrimaryButton, Pulse, SectionLabel, TornEdge, tint } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, PrimaryButton, Pulse, SectionLabel, TornEdge, tint } from '../components/brand.jsx'
+import NeedStickers from '../components/NeedStickers.jsx'
 import PastBagCard from '../components/PastBagCard.jsx'
-import Sticker from '../components/Sticker.jsx'
 import Wordmark from '../components/Wordmark.jsx'
 import { isDashed, isRankable } from '../lib/bag.js'
 import { useBuddy } from '../lib/profile.js'
-
-const NEED_TILTS = [-5, 4]
 
 export function BookmarkIcon({ filled }) {
   return (
@@ -17,7 +15,8 @@ export function BookmarkIcon({ filled }) {
   )
 }
 
-export default function Bag({ bag, setBag, budget, products, pastBags, saved, onSave, onOpenSaved, onSift, onPlace, demo, place, userName }) {
+/** needs: { budget, radius, diets, over, onBudget, onRadius, onDiets, onParsed } (App owns them) */
+export default function Bag({ bag, setBag, needs, products, pastBags, saved, onSave, onOpenSaved, onSift, onPlace, demo, place, userName }) {
   const buddy = useBuddy()
   const [tomLine, setTomLine] = useState(null) // null = the default greeting
   const [status, setStatus] = useState({ listening: false, parsing: false })
@@ -28,16 +27,8 @@ export default function Bag({ bag, setBag, budget, products, pastBags, saved, on
       ? `Hi, ${userName}. What do you need?`
       : 'What do you need?'
 
-  const removeNeed = (need) =>
-    setBag((b) => (need.budget ? { ...b, budgetSet: false } : { ...b, preferences: b.preferences.filter((x) => x !== need.text) }))
-
   const rankable = bag.items.some(isRankable)
   const pending = bag.items.filter(isDashed).length
-
-  // Need stickers: budget first, then preferences. At most two stickers on the bag.
-  const needs = [...(bag.budgetSet ? [{ text: `$${budget} budget`, budget: true }] : []), ...bag.preferences.map((p) => ({ text: p }))]
-  const shownNeeds = needs.slice(-2)
-  const hiddenNeeds = needs.slice(0, -2)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -75,7 +66,7 @@ export default function Bag({ bag, setBag, budget, products, pastBags, saved, on
           <div className="grain rounded-b-[4px] bg-kraft px-4 pb-2 pt-1">
             <div className="flex items-center justify-between">
               <h2 className="text-[14px] font-semibold text-ink">
-                Your bag · {bag.items.length} {bag.items.length === 1 ? 'item' : 'items'} · Budget <span className="font-mono font-bold">${budget}</span>
+                Your bag · {bag.items.length} {bag.items.length === 1 ? 'item' : 'items'}
               </h2>
               <button
                 type="button"
@@ -89,23 +80,11 @@ export default function Bag({ bag, setBag, budget, products, pastBags, saved, on
               </button>
             </div>
 
-            {shownNeeds.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                {shownNeeds.map((need, i) => (
-                  <button key={need.text} type="button" onClick={() => removeNeed(need)} aria-label={`Remove need: ${need.text}`} className="flex min-h-[44px] items-center px-1">
-                    <LandingSticker>
-                      <Sticker color={need.budget ? 'butter' : 'pea'} tilt={NEED_TILTS[i]} size="sm">
-                        {need.text} ×
-                      </Sticker>
-                    </LandingSticker>
-                  </button>
-                ))}
-                {hiddenNeeds.length > 0 && <span className="text-[13px] font-semibold text-ink">+ {hiddenNeeds.map((n) => n.text).join(', ')}</span>}
-              </div>
-            )}
+            {/* the bag's needs: budget, distance, diet (the only stickers on the bag) */}
+            <NeedStickers {...needs} className="-mt-1.5" />
 
             <div className="mt-1">
-              <BagItems bag={bag} setBag={setBag} products={products} placeholder={`Tell ${buddy.name} what you need`} onLine={setTomLine} onStatus={onStatus} />
+              <BagItems bag={bag} setBag={setBag} products={products} placeholder={`Tell ${buddy.name} what you need`} onLine={setTomLine} onNeeds={needs.onParsed} onStatus={onStatus} />
             </div>
           </div>
         </section>

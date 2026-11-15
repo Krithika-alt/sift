@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { parseList } from '../api/client.js'
 import Sticker from './Sticker.jsx'
 import { isRankable, itemKey, isDashed, parseEntry, productItem, shortName, typedItem, voiceItems } from '../lib/bag.js'
+import { needsLine, parseNeeds } from '../lib/needs.js'
 import { useSpeech } from '../lib/useSpeech.js'
 
 const MAX_QTY = 99
@@ -74,9 +75,10 @@ function Stepper({ item, onChange }) {
 /**
  * The bag's rows plus the add row (typing, autocomplete and the mic), shared by the Bag and the
  * Saved Bag screen. Typed lists and speech go through POST /api/parse-list; dashed rows ask to
- * confirm. onLine(text) lets the screen's buddy speak; onStatus({listening, parsing}).
+ * confirm. Sentences of needs ("under $15", "walking distance", "I'm vegan") are matched first and
+ * go to onNeeds. onLine(text) lets the screen's buddy speak; onStatus({listening, parsing}).
  */
-export default function BagItems({ bag, setBag, products, inputId = 'bag-input', placeholder, onLine = () => {}, onStatus }) {
+export default function BagItems({ bag, setBag, products, inputId = 'bag-input', placeholder, onLine = () => {}, onNeeds, onStatus }) {
   const [text, setText] = useState('')
   const [parsing, setParsing] = useState(false)
 
@@ -90,6 +92,7 @@ export default function BagItems({ bag, setBag, products, inputId = 'bag-input',
 
   // Voice: final transcript -> POST /api/parse-list -> editable rows in the bag (the confirm step).
   async function onTranscript(transcript, alternatives = []) {
+    if (takeNeeds(transcript)) return
     setParsing(true)
     try {
       const { data } = await parseList(transcript, alternatives)
@@ -114,19 +117,25 @@ export default function BagItems({ bag, setBag, products, inputId = 'bag-input',
     return products.filter((p) => p.name.toLowerCase().includes(q) && !have.has(p.name.toLowerCase())).slice(0, 4)
   }, [text, products, bag.items])
 
+  // Budget, distance and diet sentences set the bag's stickers; the buddy confirms in one line.
+  function takeNeeds(said) {
+    const needs = onNeeds && parseNeeds(said)
+    if (!needs) return false
+    onNeeds(needs)
+    onLine(needsLine(needs))
+    return true
+  }
+
   function submit(e) {
     e?.preventDefault()
+    if (takeNeeds(text)) return setText('')
     const parsed = parseEntry(text)
     if (!parsed) return
     if (parsed.kind === 'items') {
       // Typed lists get the same confirm step as speech.
       onTranscript(text.trim())
-    } else if (parsed.kind === 'budget') {
-      setBag((b) => ({ ...b, budget: parsed.budget, budgetSet: true }))
-      onLine("Noted. I'll keep that in mind.")
     } else {
-      setBag((b) => ((b.preferences ?? []).includes(parsed.preference) ? b : { ...b, preferences: [...(b.preferences ?? []), parsed.preference] }))
-      onLine("Noted. I'll keep that in mind.")
+      onLine("I can't sort by that yet. Try a budget, a distance or a diet.")
     }
     setText('')
   }

@@ -1,11 +1,10 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { LandingSticker } from './brand.jsx'
-import { MiniBag } from './Motifs.jsx'
-import Sticker, { STICKER_COLORS } from './Sticker.jsx'
+import { BAG_COLORS, MiniBag } from './Motifs.jsx'
+import Sticker from './Sticker.jsx'
 import { autoName, toItem } from '../lib/bag.js'
 import { money, storeColor } from '../lib/stores.js'
 
-// Cards rotate through these pop colors.
-const TONES = ['pea', 'butter', 'sardine', 'radish', 'clementine']
 
 const INITIALS = {
   trader_joes_monroe: 'TJ',
@@ -22,17 +21,28 @@ export function storeInitials(storeId, name = '') {
 }
 
 /**
- * A saved bag as a mini paper bag (Motifs.jsx): name (Karla 700 16, two lines max), item count
+ * A saved bag as a flat mini paper bag (Motifs.jsx: one solid light pop color from BAG_COLORS and
+ * the zigzag torn top; no lip, creases or shading): name (Karla 700 16, two lines max), item count
  * (Karla 13 muted), and produce-style stickers on the bag body: the winning store's initials in
  * its color, and a butter SAVED sticker. Tapping opens the Saved Bag screen.
  */
 export default function PastBagCard({ pb, index = 0, onOpen, fill = false }) {
   const items = pb.items.map(toItem)
   const name = pb.name || autoName(items)
-  const tone = STICKER_COLORS[TONES[index % TONES.length]].bg
+  // fill: stretch to the grid column. MiniBag needs a number to cut its zigzag top, so measure.
+  const box = useRef(null)
+  const [width, setWidth] = useState(156)
+  useLayoutEffect(() => {
+    if (!fill || !box.current) return
+    const measure = () => setWidth(Math.floor(box.current.getBoundingClientRect().width))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(box.current)
+    return () => ro.disconnect()
+  }, [fill])
   return (
-    <button type="button" onClick={onOpen} aria-label={`Open ${name}, ${items.length} items`} className={`shrink-0 text-left transition-transform active:scale-[0.98] ${fill ? 'w-full' : ''}`}>
-      <MiniBag color={tone} width={fill ? '100%' : 156} height={176}>
+    <button ref={box} type="button" onClick={onOpen} aria-label={`Open ${name}, ${items.length} items`} className={`shrink-0 text-left transition-transform active:scale-[0.98] ${fill ? 'w-full' : ''}`}>
+      <MiniBag color={BAG_COLORS[index % BAG_COLORS.length]} width={width} height={176}>
         <span className="line-clamp-2 text-[16px] font-bold leading-tight text-ink">{name}</span>
         <span className="mt-1 text-[13px] text-muted">
           {items.length} {items.length === 1 ? 'item' : 'items'}
