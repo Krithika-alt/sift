@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getProducts, rankStores, reportPrice } from './api/client.js'
+import { askAgent, getProducts, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs } from './components/brand.jsx'
 import { DEFAULT_BUDGET, DEFAULT_LOCATION, DEFAULT_MODE, DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { loadPastBags, savePastBag } from './lib/bag.js'
+import { loadPastBags, savePastBag, toItem } from './lib/bag.js'
+import AskTomSheet from './screens/AskTomSheet.jsx'
 import Bag from './screens/Bag.jsx'
 import Receipt from './screens/Receipt.jsx'
 import ReportPriceSheet from './screens/ReportPriceSheet.jsx'
@@ -15,7 +16,8 @@ const SLIDE_DELAY_MS = 450
 function rankBody(bag, mode) {
   const body = {
     user_location: { lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon },
-    items: bag.items,
+    // Only rows with rank text: typed items and matched voice items (rank_items). NOT FOUND rows stay out.
+    items: bag.items.filter((i) => i.rank).map((i) => i.rank),
     weights: MODES.find((m) => m.id === mode).weights,
     budget: bag.budget,
   }
@@ -45,6 +47,11 @@ export default function App() {
   const [receiptId, setReceiptId] = useState(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [slapId, setSlapId] = useState(null)
+
+  // Ask Tom: { question, ranked, status: 'loading' | 'done' | 'error', data }
+  const [ask, setAsk] = useState(null)
+  const [askOpen, setAskOpen] = useState(false)
+  const askId = useRef(0)
 
   const scrollRef = useRef(null)
   const reqId = useRef(0)
@@ -130,6 +137,20 @@ export default function App() {
     }
   }
 
+  // Reopening the same question for the same ranking shows the pending or finished answer.
+  async function askTom(question, force = false) {
+    setAskOpen(true)
+    if (!force && ask && ask.question === question && ask.ranked === ranked && ask.status !== 'error') return
+    const id = ++askId.current
+    setAsk({ question, ranked, status: 'loading', data: null })
+    try {
+      const { data } = await askAgent({ question, ranking: { ranked_stores: ranked } })
+      if (id === askId.current) setAsk({ question, ranked, status: 'done', data })
+    } catch {
+      if (id === askId.current) setAsk({ question, ranked, status: 'error', data: null })
+    }
+  }
+
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
 
   return (
@@ -145,7 +166,7 @@ export default function App() {
               products={products}
               pastBags={pastBags}
               onLoadPast={(pb) =>
-                setBag({ items: pb.items, budget: pb.budget, budgetSet: pb.budget !== DEFAULT_BUDGET, preferences: pb.preferences ?? [] })
+                setBag({ items: pb.items.map(toItem), budget: pb.budget, budgetSet: pb.budget !== DEFAULT_BUDGET, preferences: pb.preferences ?? [] })
               }
               onSift={sift}
               demo={demo}
@@ -174,6 +195,7 @@ export default function App() {
                 setScreen('receipt')
               }}
               onEditBag={() => setScreen('bag')}
+              onAsk={askTom}
             />
           )}
           {screen === 'receipt' && receiptStore && (
@@ -194,6 +216,13 @@ export default function App() {
           products={products}
           onClose={() => setReportOpen(false)}
           onSend={sendReport}
+        />
+
+        <AskTomSheet
+          open={askOpen && screen === 'results'}
+          ask={ask}
+          onClose={() => setAskOpen(false)}
+          onRetry={() => askTom(ask.question, true)}
         />
       </div>
     </div>

@@ -58,3 +58,22 @@ export const reportPrice = (body) =>
     () => request('/api/report-price', { method: 'POST', body }),
     () => mock.reportPrice(body),
   )
+
+/**
+ * POST /api/parse-list  body: { text }
+ * -> { items: [{ text, quantity, matched, name, ... }], rank_items: [str], ... }
+ */
+export const parseList = (text) =>
+  withFallback(
+    () => request('/api/parse-list', { method: 'POST', body: { text } }),
+    () => mock.parseList({ text }),
+  )
+
+// Genie takes 10-25 s, so ask-agent has no 4 s fallback: wait up to 40 s, then fail calmly.
+export const ASK_TIMEOUT_MS = 40000
+
+/** POST /api/ask-agent  body: { question, ranking: { ranked_stores } } -> { answer, headline, facts_used, source } */
+export async function askAgent(body) {
+  if (DEMO_MODE) return { data: await mock.askAgent(body), demo: true }
+  return { data: await request('/api/ask-agent', { method: 'POST', body, timeout: ASK_TIMEOUT_MS }), demo: false }
+}

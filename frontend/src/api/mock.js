@@ -314,3 +314,96 @@ export function reportPrice({ store_id, product_id, price, in_stock = true }) {
   pings.push({ ping_id, store_id, product_id, price: Number(price), in_stock, reported_at: new Date() })
   return settle({ ok: true, ping_id })
 }
+
+// --- POST /api/parse-list (DEMO_MODE): split on commas and "and", match against mock products ---
+const NUMBER_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, dozen: 1 }
+const UNITS = /^(?:gallons?|gals?|pounds?|lbs?|ounces?|oz|dozens?|loaf|loaves|bags?|box(?:es)?|cartons?|jars?|bottles?|cans?|packs?|bunch(?:es)?)\s+(?:of\s+)?/
+const LEADING_FILLER = /^(?:(?:hey|ok|okay|um|uh|so)[,.]?\s+)*(?:i need|i want|we need|get me|get|grab|buy|pick up|add)\s+/
+
+export function parseList({ text }) {
+  const cleaned = (text || '').toLowerCase().replace(/’/g, "'").trim().replace(LEADING_FILLER, '')
+  const seen = new Set()
+  const pieces = []
+  for (const raw of cleaned.split(/\s*(?:,|;|\.|\band\b)\s*/)) {
+    let piece = raw.trim()
+    if (!piece) continue
+    let quantity = 1
+    const m = piece.match(/^(\d+|[a-z]+)\s+(.+)$/)
+    if (m && (/^\d+$/.test(m[1]) || m[1] in NUMBER_WORDS)) {
+      quantity = Math.max(1, /^\d+$/.test(m[1]) ? Number(m[1]) : NUMBER_WORDS[m[1]])
+      piece = m[2]
+    }
+    piece = piece.replace(UNITS, '').replace(/\b(?:some|any|the|of|please|more)\b/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!piece || seen.has(norm(piece))) continue
+    seen.add(norm(piece))
+    pieces.push({ text: piece, quantity, raw })
+  }
+  const items = pieces.map((p) => {
+    const pid = matchItems([p.text])[0]?.[1] ?? null
+    return { ...p, matched: pid != null, product_id: pid, name: pid ? byId[pid].name : null }
+  })
+  return settle({
+    items,
+    unmatched: items.filter((i) => !i.matched).map((i) => i.text),
+    rank_items: items.map((i) => i.text),
+  })
+}
+
+// --- POST /api/ask-agent (DEMO_MODE): grounded answers from the ranking and mock prices only ---
+const PROTEIN_IDS = ['eggs_large_12', 'chicken_breast_lb', 'greek_yogurt_32', 'peanut_butter_16']
+const storeName = (id) => STORES.find((s) => s.store_id === id)?.name ?? id
+const sourceLabel = (src) => (src === 'simulated' ? 'simulated price' : src === 'crowd' ? 'crowd-reported' : 'real price')
+
+function answerWhy(stores) {
+  const [w, r] = stores
+  if (!w) return { answer: 'I need a ranking to explain. Sift your list first.', facts_used: [] }
+  let answer = `${w.name} ranked #1 with a score of ${w.ml_rank_score.toFixed(2)}: your basket is $${w.total_basket_price.toFixed(2)} and it is ${w.distance_miles.toFixed(1)} miles away.`
+  if (r) {
+    const dp = r.total_basket_price - w.total_basket_price
+    const dd = w.distance_miles - r.distance_miles
+    answer += ` Compared with ${r.name}, it is $${Math.abs(dp).toFixed(2)} ${dp >= 0 ? 'cheaper' : 'more expensive'} and ${Math.abs(dd).toFixed(1)} miles ${dd >= 0 ? 'farther' : 'closer'}.`
+  }
+  const facts = stores.slice(0, 2).map((s) => `${s.name}: basket $${s.total_basket_price.toFixed(2)}, ${s.distance_miles.toFixed(1)} mi, score ${s.ml_rank_score.toFixed(2)}`)
+  return { answer, facts_used: facts }
+}
+
+function answerSwap(stores) {
+  const w = stores[0]
+  if (!w) return { answer: 'I need a ranking first. Sift your list, then ask again.', facts_used: [] }
+  const facts = []
+  for (const item of w.items_breakdown) {
+    if (!item.in_stock) continue
+    let best = null
+    for (const s of stores.slice(1)) {
+      const other = s.items_breakdown.find((i) => i.query === item.query && i.in_stock)
+      if (other && item.price - other.price >= 0.25 && (!best || other.price < best.price)) best = { ...other, store: s.name }
+    }
+    if (best) facts.push(`${item.name}: $${best.price.toFixed(2)} at ${best.store} vs $${item.price.toFixed(2)} at ${w.name} (${sourceLabel(best.source)})`)
+  }
+  const answer = facts.length
+    ? `${facts.length} item${facts.length > 1 ? 's are' : ' is'} cheaper elsewhere: ${facts.join('; ')}.`
+    : `I found no cheaper same-kind products at ${w.name} for your basket (swaps need similar items in our catalog, like a store brand next to a name brand).`
+  return { answer, facts_used: facts }
+}
+
+function answerProtein() {
+  const best = {}
+  for (const r of latestPrices()) {
+    if (!PROTEIN_IDS.includes(r.product_id) || !r.in_stock) continue
+    if (!best[r.product_id] || r.unit_price < best[r.product_id].unit_price) best[r.product_id] = r
+  }
+  const facts = PROTEIN_IDS.filter((id) => best[id]).map((id) => {
+    const r = best[id]
+    return `${byId[id].name}: ${fmtUnit(r)} at ${storeName(r.store_id)} (${sourceLabel(r.source)})`
+  })
+  const answer = `Cheapest protein items by unit price, best store for each: ${facts.join('; ')}. I only have prices, not nutrition data, so this compares cost per unit (per lb, per oz, per count), not grams of protein per dollar.`
+  return { answer, facts_used: facts }
+}
+
+export function askAgent({ question, ranking }) {
+  const q = (question || '').toLowerCase()
+  const stores = ranking?.ranked_stores ?? []
+  const out = /protein/.test(q) ? answerProtein() : /swap|cheaper|save|instead/.test(q) ? answerSwap(stores) : answerWhy(stores)
+  const headline = out.answer.split('. ')[0].replace(/\.$/, '') + '.'
+  return new Promise((resolve) => setTimeout(() => resolve({ ...out, headline, source: 'demo' }), 1400))
+}

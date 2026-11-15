@@ -20,14 +20,14 @@ export default function Sheet({ open, onClose, title, children }) {
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="relative"
+            className="relative flex max-h-[88%] flex-col"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
           >
-            <TornEdge color="var(--kraft)" seed={23} height={14} />
-            <div className="grain bg-kraft px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-2">{children}</div>
+            <TornEdge color="var(--kraft)" seed={23} height={14} className="shrink-0" />
+            <div className="grain no-scrollbar overflow-y-auto overscroll-contain bg-kraft px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-2">{children}</div>
           </motion.div>
         </div>
       )}

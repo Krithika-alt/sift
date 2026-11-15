@@ -171,3 +171,17 @@ export function PrimaryButton({ children, className = '', ...rest }) {
     </button>
   )
 }
+
+/** Slow three-dot pulse for "Listening..." and "Thinking..." */
+export function Pulse({ children }) {
+  return (
+    <span>
+      {children}
+      <span className="dot-pulse" aria-hidden="true">
+        <span>.</span>
+        <span>.</span>
+        <span>.</span>
+      </span>
+    </span>
+  )
+}

@@ -40,6 +40,25 @@ export function parseEntry(raw) {
   return { kind: 'items', items }
 }
 
+// Bag rows: { label, rank, notFound? }. `label` is what the row shows; `rank` is the text sent
+// to /api/rank-stores (null = not sent). Typed items use their own text for both.
+export const typedItem = (text) => ({ label: text, rank: text })
+
+// Voice rows from /api/parse-list. rank_items[i] pairs with items[i]; unmatched items are shown
+// with NOT FOUND and never sent to rank-stores.
+export function voiceItems({ items = [], rank_items = [] }) {
+  return items.map((it, i) =>
+    it.matched
+      ? { label: it.quantity > 1 ? `${it.name} ×${it.quantity}` : it.name, rank: rank_items[i] ?? it.text }
+      : { label: it.text, rank: null, notFound: true },
+  )
+}
+
+export const itemKey = (item) => (item.rank ?? item.label).toLowerCase()
+
+// Older saved bags stored plain strings.
+export const toItem = (x) => (typeof x === 'string' ? typedItem(x) : x)
+
 // Past bags (localStorage). Wrapped in try/catch so private windows still work.
 const KEY = 'sift.pastBags'
 
@@ -52,9 +71,11 @@ export function loadPastBags() {
 }
 
 export function savePastBag(bag) {
-  const sig = (b) => [...b.items].map((s) => s.toLowerCase()).sort().join('|')
-  const entry = { items: bag.items, budget: bag.budget, preferences: bag.preferences, at: Date.now() }
-  const list = [entry, ...loadPastBags().filter((b) => sig(b) !== sig(bag))].slice(0, 6)
+  const items = bag.items.filter((i) => i.rank)
+  const sig = (b) => b.items.map((i) => itemKey(toItem(i))).sort().join('|')
+  const entry = { items, budget: bag.budget, preferences: bag.preferences, at: Date.now() }
+  if (!items.length) return loadPastBags()
+  const list = [entry, ...loadPastBags().filter((b) => sig(b) !== sig(entry))].slice(0, 6)
   try {
     localStorage.setItem(KEY, JSON.stringify(list))
   } catch {

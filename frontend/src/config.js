@@ -10,7 +10,7 @@ export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || params.get
 export const FALLBACK_TIMEOUT_MS = 4000
 
 export const DEFAULT_LOCATION = { lat: 43.0727, lon: -89.4015, label: 'Grainger Hall' }
-export const DEMO_BASKET = ['eggs', 'oats', 'greek yogurt', 'chicken breast', 'bananas']
+export const DEMO_BASKET = ['eggs', 'oats', 'greek yogurt', 'chicken breast', 'bananas'].map((t) => ({ label: t, rank: t }))
 export const DEFAULT_BUDGET = 20
 
 // Segmented control weights for price / distance / preference.

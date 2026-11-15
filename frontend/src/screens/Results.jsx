@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { BuddyLine, DemoBadge, NumberSticker, Sticker, TornEdge } from '../components/brand.jsx'
 import PaperMap from '../components/PaperMap.jsx'
+import { ASK_CHIPS } from './AskTomSheet.jsx'
 import { DEFAULT_LOCATION, MODES } from '../config.js'
 import { itemsFound, miles, money, priceCounts, reasonLine, savingsVsNearby, storeColor } from '../lib/stores.js'
 
@@ -92,7 +93,7 @@ function RunnerRow({ store, n, slapped, onReceipt }) {
   )
 }
 
-export default function Results({ ranked, mode, onMode, budget, demo, busy, slapId, onReceipt, onEditBag }) {
+export default function Results({ ranked, mode, onMode, budget, demo, busy, slapId, onReceipt, onEditBag, onAsk }) {
   return (
     <div className="min-h-full">
       <div className="relative">
@@ -139,6 +140,20 @@ export default function Results({ ranked, mode, onMode, budget, demo, busy, slap
 
           <div className="mt-5">
             <BuddyLine size={52}>{reasonLine(ranked, budget)}</BuddyLine>
+          </div>
+
+          {/* Ask Tom */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ASK_CHIPS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onAsk(q)}
+                className="min-h-[44px] rounded-full border-[1.5px] border-ink bg-receipt px-4 text-[15px] font-semibold text-ink active:bg-ink active:text-eggshell"
+              >
+                {q}
+              </button>
+            ))}
           </div>
 
           <ol aria-busy={busy} className={`mt-6 transition-opacity ${busy ? 'opacity-60' : ''}`}>
