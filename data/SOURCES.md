@@ -8,10 +8,11 @@ Collected Nov 14, 2026 during MadHacks. Every price row has a `source` label, an
 | Trader Joe's (1810 Monroe St) | `website` | traderjoes.com with the Madison store selected |
 | Fresh Madison Market (703 University Ave) | `website` | shop.freshmadisonmarket.com (the store says online prices match in-store prices) |
 | Pick 'n Save (1312 S Park St) | `api` | Kroger Products API, location 53400183, via `kroger_prices.py` |
+| Metro Market (3650 University Ave) | `api` | Kroger Products API, location 53400180, via `kroger_prices.py metro_market_shorewood "3650 university"` |
 
 ## Simulated prices (labeled on screen)
 
-- 2% store-brand milk at Trader Joe's, Pick 'n Save and Fresh Madison Market (not listed online)
+- 2% store-brand milk at Trader Joe's, Pick 'n Save, Fresh Madison Market and Metro Market (not listed online)
 - Toilet paper at Trader Joe's: the other stores' average price per mega roll x 12
 
 Simulated prices count toward basket rankings but are never used for "you'll save $X" swap claims.
@@ -26,7 +27,8 @@ Simulated prices count toward basket rankings but are never used for "you'll sav
 
 ## Files
 
-- `raw/stores.csv` – 4 stores with lat/lon from Google Maps
+- `raw/stores.csv` – 5 stores with lat/lon from Google Maps
 - `raw/prices_real.csv`, `raw/prices_batch2.csv`, `raw/prices_batch3.csv` – website prices with links
 - `raw/kroger_prices.csv` – Pick 'n Save prices from the API
+- `raw/kroger_prices_metro_market_shorewood.csv` – Metro Market prices from the API
 - `kroger_prices.py` – pulls Pick 'n Save prices. Needs `KROGER_CLIENT_ID` and `KROGER_CLIENT_SECRET` as environment variables; never commit them.

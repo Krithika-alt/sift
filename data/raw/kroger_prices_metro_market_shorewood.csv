@@ -1,0 +1,15 @@
+store_id,product_id,price,size_value,size_unit,in_stock,source,observed_at,source_url,notes
+metro_market_shorewood,eggs_large_12,1.79,12.0,ct,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111060903,Kroger® Grade A Large White Eggs
+metro_market_shorewood,oats_rolled,4.69,42.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111076655,Kroger® 100% Whole Grain Old Fashioned Oats
+metro_market_shorewood,greek_yogurt_32oz,4.29,32.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111010717,Kroger® Plain Nonfat Greek Yogurt Tub
+metro_market_shorewood,greek_yogurt_32oz_name,6.99,32.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0089470001013,Chobani® Plain Nonfat Greek Yogurt Tub
+metro_market_shorewood,chicken_breast_lb,2.5,1,lb,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0028334900000,Heritage Farm® Boneless Skinless Chicken Breasts
+metro_market_shorewood,milk_2pct_gal_name,5.29,1.0,gal,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0004148302197,Kemps Select 2% Reduced Fat Milk
+metro_market_shorewood,pb_creamy_16oz,2.69,16.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111001618,Kroger® Creamy Peanut Butter
+metro_market_shorewood,pb_creamy_16oz_name,3.39,16.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0005150025516,Jif Creamy Peanut Butter
+metro_market_shorewood,bananas_each,0.24,1,ct,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0000000004011,Fresh Bunch of Bananas – 5-7 Bananas (per-lb price x 0.4 lb per banana)
+metro_market_shorewood,bread_white_20oz,1.99,20.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111008485,Kroger® White Bread (promo price)
+metro_market_shorewood,rice_white_2lb,1.99,2.0,lb,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111089875,Kroger® Enriched Long Grain White Rice
+metro_market_shorewood,pasta_spaghetti_16oz,1.25,16.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111085004,Kroger® Spaghetti (promo price)
+metro_market_shorewood,ramen_3oz,0.6,3.0,oz,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0004178900257,Maruchan® Ramen Noodle Soup  Roast Chicken
+metro_market_shorewood,toilet_paper_12,13.99,12.0,ct,true,api,2026-11-14 23:49:23,https://www.picknsave.com/p/0001111012800,Kroger® Ultra Soft Toilet Paper Mega Roll

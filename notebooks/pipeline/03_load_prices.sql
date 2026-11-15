@@ -28,6 +28,14 @@ SELECT store_id, product_id, CAST(price AS DOUBLE),
        size_unit, CAST(in_stock AS BOOLEAN), source, CAST(observed_at AS TIMESTAMP)
 FROM read_files('/Volumes/sift/main/raw/kroger_prices.csv', format => 'csv', header => true);
 
+-- Real Metro Market prices from the Kroger Products API
+-- (python3 kroger_prices.py metro_market_shorewood "3650 university")
+INSERT INTO sift.main.prices
+SELECT store_id, product_id, CAST(price AS DOUBLE),
+       CAST(price AS DOUBLE) / CAST(size_value AS DOUBLE),
+       size_unit, CAST(in_stock AS BOOLEAN), source, CAST(observed_at AS TIMESTAMP)
+FROM read_files('/Volumes/sift/main/raw/kroger_prices_metro_market_shorewood.csv', format => 'csv', header => true);
+
 -- Manual corrections from the same sources
 INSERT INTO sift.main.prices VALUES
   -- traderjoes.com: pasture-raised large eggs (only eggs listed online), oats 18 oz
@@ -42,6 +50,7 @@ INSERT INTO sift.main.prices VALUES
   ('trader_joes_monroe',   'milk_2pct_gal',   3.99,  3.99,       'gal', true, 'simulated', TIMESTAMP '2026-11-14 00:00:00'),
   ('pick_n_save_park',     'milk_2pct_gal',   3.69,  3.69,       'gal', true, 'simulated', TIMESTAMP '2026-11-14 00:00:00'),
   ('fresh_madison_market', 'milk_2pct_gal',   3.99,  3.99,       'gal', true, 'simulated', TIMESTAMP '2026-11-14 00:00:00'),
+  ('metro_market_shorewood','milk_2pct_gal',  3.69,  3.69,       'gal', true, 'simulated', TIMESTAMP '2026-11-14 00:00:00'),
   -- TJ's toilet paper: average per-mega-roll price of the other 3 stores (~$1.13) x 12
   ('trader_joes_monroe',   'toilet_paper_12', 13.59, 13.59 / 12, 'ct',  true, 'simulated', TIMESTAMP '2026-11-14 00:00:00');
 

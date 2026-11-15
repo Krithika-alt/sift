@@ -35,6 +35,7 @@ Honesty:
   - trader_joes_monroe = Trader Joe's (Monroe St)
   - pick_n_save_park = Pick 'n Save (Park St)
   - fresh_madison_market = Fresh Madison Market
+  - metro_market_shorewood = Metro Market (University Ave)
 ```
 
 ## Tested questions

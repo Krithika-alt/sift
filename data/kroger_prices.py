@@ -22,8 +22,11 @@ from datetime import datetime
 
 BASE = "https://api.kroger.com/v1"
 ZIP = "53715"
-STORE_HINT = "park"          # we want the Park St store
-STORE_ID = "pick_n_save_park"
+# Which store to pull. Defaults to the Park St Pick 'n Save.
+# Another Kroger-family store: python3 kroger_prices.py metro_market_shorewood "3650 university"
+STORE_ID = sys.argv[1] if len(sys.argv) > 1 else "pick_n_save_park"
+STORE_HINT = (sys.argv[2] if len(sys.argv) > 2 else "park").lower()   # text to find in the store's address
+OUT_FILE = "kroger_prices.csv" if STORE_ID == "pick_n_save_park" else f"kroger_prices_{STORE_ID}.csv"
 
 # (sift product_id, search term, expected unit, expected size, words that disqualify a result)
 PRODUCTS = [
@@ -41,7 +44,7 @@ PRODUCTS = [
     ("rice_white_2lb",         "kroger long grain white rice",      "lb",  2,  ["instant", "brown", "jasmine", "basmati", "boil", "minute"]),
     ("pasta_spaghetti_16oz",   "kroger spaghetti",                  "oz",  16, ["thin", "angel", "whole", "gluten", "sauce"]),
     ("ramen_3oz",              "maruchan chicken ramen",            "oz",  3,  ["cup", "bowl"]),
-    ("toilet_paper_12",        "kroger toilet paper",               "ct",  12, ["wipes", "flushable"]),
+    ("toilet_paper_12",        "kroger mega roll toilet paper",     "ct",  12, ["wipes", "flushable", "double"]),
 ]
 
 LB_PER_BANANA = 0.4  # bananas are sold by the pound; convert to a per-banana price
@@ -128,6 +131,8 @@ def main():
                 regular, promo = price.get("regular") or 0, price.get("promo") or 0
                 shelf = promo if promo else regular
                 size_val, size_unit = parse_size(item.get("size", ""))
+                if size_unit == "oz" and want_unit == "lb" and size_val:   # e.g. rice listed as 32 oz = 2 lb
+                    size_val, size_unit = size_val / 16, "lb"
                 sold_by = (item.get("soldBy") or "").upper()
                 print(f"   {p.get('description', '')[:60]:60}  size={item.get('size', '')!r:12}  "
                       f"regular={regular}  promo={promo}  soldBy={sold_by}")
@@ -157,12 +162,12 @@ def main():
             "notes": note.replace(",", " "),
         })
 
-    with open("kroger_prices.csv", "w", newline="") as f:
+    with open(OUT_FILE, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["store_id", "product_id", "price", "size_value", "size_unit",
                                           "in_stock", "source", "observed_at", "source_url", "notes"])
         w.writeheader()
         w.writerows(rows)
-    print(f"Wrote {len(rows)} rows to kroger_prices.csv. Check the PICKED lines above before uploading.")
+    print(f"Wrote {len(rows)} rows to {OUT_FILE}. Check the PICKED lines above before uploading.")
 
 
 if __name__ == "__main__":
