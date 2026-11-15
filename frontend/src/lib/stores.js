@@ -21,6 +21,10 @@ export function storeColor(storeId) {
 export const money = (n) => `$${Number(n).toFixed(2)}`
 export const matchPct = (store) => `${Math.round(store.ml_rank_score * 100)}%`
 export const walkMinutes = (mi) => Math.max(1, Math.round(mi * 20))
+// Past 2 mi nobody walks: show a rough city drive instead (about 25 mph plus parking).
+export const WALK_MAX_MI = 2
+export const driveMinutes = (mi) => Math.max(5, Math.round(mi * 2.4 + 3))
+export const tripLabel = (mi) => (mi <= WALK_MAX_MI ? `${walkMinutes(mi)} min walk` : `about ${driveMinutes(mi)} min drive`)
 // line_total = price x quantity (older backends only send price)
 export const lineTotal = (item) => item.line_total ?? item.price * (item.quantity ?? 1)
 export const miles = (n) => `${Number(n).toFixed(1)} MI`

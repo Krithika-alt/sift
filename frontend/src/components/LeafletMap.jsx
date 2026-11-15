@@ -10,7 +10,7 @@ import { MAP_STYLE, TILE_ATTRIBUTION } from './mapStyle.js'
 const PIN_CLEAR = 28
 const FAIL_LIMIT = 4
 const LOAD_TIMEOUT_MS = 9000
-const MIN_ZOOM = 12
+const MIN_ZOOM = 10 // the 10 mi circle needs room
 const MAX_ZOOM = 17
 const MI_TO_M = 1609.34
 const CIRCLE_MS = 300
@@ -100,7 +100,7 @@ function circleBounds(lat, lon, mi) {
 }
 
 /**
- * A real, movable map: drag to pan, pinch, double-tap or box to zoom (12 to 17), the wheel only
+ * A real, movable map: drag to pan, pinch, double-tap or box to zoom (10 to 17), the wheel only
  * where `wheelZoom` is on. Free vector tiles (OpenFreeMap) drawn by MapLibre in our paper colors:
  * blue water, green parks, cream streets, no labels. The search radius is a soft pea circle around
  * the user; changing it animates the circle (300 ms) and fits the map to it. Store pins are numbered

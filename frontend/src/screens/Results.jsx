@@ -6,7 +6,7 @@ import { RadiusPill } from '../components/RadiusPills.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
-import { itemsFound, matchPct, money, priceCounts, reasonLine, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
+import { itemsFound, matchPct, money, priceCounts, reasonLine, savingsVsNearby, storeColor, tripLabel } from '../lib/stores.js'
 import { askChips } from './AskTomSheet.jsx'
 
 const fmtMi = (mi) => `${Number(mi).toFixed(1)} mi`
@@ -53,7 +53,7 @@ function ExtraSticker({ store, ctx }) {
 
 const meta = (s) => {
   const { found, total } = itemsFound(s)
-  return `${fmtMi(s.distance_miles)} · ${walkMinutes(s.distance_miles)} min walk · ${found} of ${total} · ${matchPct(s)} match`
+  return `${fmtMi(s.distance_miles)} · ${tripLabel(s.distance_miles)} · ${found} of ${total} · ${matchPct(s)} match`
 }
 
 function BestCard({ store, ranked, ctx, onReceipt }) {

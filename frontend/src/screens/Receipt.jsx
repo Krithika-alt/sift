@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { BackButton, BottomBar, BuddyLine, DemoBadge, TornEdge, wash } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
+import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, storeColor, walkMinutes, driveMinutes, WALK_MAX_MI } from '../lib/stores.js'
 
 function Barcode({ seed }) {
   const bars = useMemo(() => {
@@ -152,7 +152,8 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
             <div className="mt-4 space-y-1 text-[12px] uppercase tracking-[0.12em]">
               <p>{saves >= 0 ? `Saves ${money(saves)}` : `${money(-saves)} more than`} vs nearby avg</p>
               <p>
-                Walk {store.distance_miles.toFixed(2)} mi · about {walkMinutes(store.distance_miles)} min
+                {store.distance_miles <= WALK_MAX_MI ? 'Walk' : 'Drive'} {store.distance_miles.toFixed(2)} mi · about{' '}
+                {store.distance_miles <= WALK_MAX_MI ? walkMinutes(store.distance_miles) : driveMinutes(store.distance_miles)} min
               </p>
             </div>
 

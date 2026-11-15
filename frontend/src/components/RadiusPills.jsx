@@ -3,8 +3,8 @@ import { motion } from 'framer-motion'
 import { RADII, radiusLabel } from '../lib/needs.js'
 
 /**
- * Search radius: "0.5 mi", "1 mi", "2 mi", "3 mi" (Karla 600 14, height 36, radius 18). Selected is
- * soil with eggshell text. `pulse` (a changing number) makes the 3 mi pill pulse once, gently.
+ * Search radius: "1 mi", "3 mi", "5 mi", "10 mi" (Karla 600 14, height 36, radius 18). Selected is
+ * soil with eggshell text. `pulse` (a changing number) makes the largest pill pulse once, gently.
  */
 export default function RadiusPills({ value, onChange, pulse = 0, className = '' }) {
   return (

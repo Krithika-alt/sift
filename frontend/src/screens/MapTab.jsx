@@ -4,7 +4,7 @@ import { DemoBadge, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
 import RadiusPills from '../components/RadiusPills.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { directionsUrl, storeColor, walkMinutes } from '../lib/stores.js'
+import { directionsUrl, storeColor, tripLabel } from '../lib/stores.js'
 
 const SHEET_MAX = 520
 const SHEET_MIN = 280
@@ -103,7 +103,7 @@ export default function MapTab({ stores, user, demo, radius, onRadius }) {
                     <span className="min-w-0 flex-1">
                       <span className="block text-[16px] font-bold leading-tight text-ink">{s.name}</span>
                       <span className="block text-[13px] text-muted">
-                        {s.distance_miles.toFixed(1)} mi · {walkMinutes(s.distance_miles)} min walk
+                        {s.distance_miles.toFixed(1)} mi · {tripLabel(s.distance_miles)}
                       </span>
                     </span>
                   </button>

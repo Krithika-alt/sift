@@ -1,14 +1,16 @@
 // The bag's "needs": budget, distance and diet. The only stickers on the bag.
 
 // Search radius (miles), shared by the Results map, the Map tab and the bag's distance sticker.
-export const RADII = [0.5, 1, 2, 3]
-export const DEFAULT_RADIUS = 2
+// 1 mi is walking distance; 10 mi covers a drive across town.
+export const RADII = [1, 3, 5, 10]
+export const DEFAULT_RADIUS = 3
 const RADIUS_KEY = 'sift.radius'
 
 export function loadRadius() {
   try {
-    const n = Number(localStorage.getItem(RADIUS_KEY))
-    return RADII.includes(n) ? n : DEFAULT_RADIUS
+    const raw = localStorage.getItem(RADIUS_KEY)
+    // older choices (0.5 or 2 mi) move to the nearest pill that still covers them
+    return raw == null ? DEFAULT_RADIUS : snapRadius(Number(raw) || DEFAULT_RADIUS)
   } catch {
     return DEFAULT_RADIUS
   }
@@ -53,6 +55,7 @@ const BUDGET = [
 const NO_BUDGET = /^(?:no budget|any budget|budget doesn'?t matter|no limit)$/
 const WITHIN = /\bwithin\s+(?:a\s+)?(half(?:\s+a)?|\d+(?:\.\d+)?)\s*(?:a\s+)?(?:mi|mile|miles)\b/
 const NEAR = /\b(?:nothing far|not too far|walking distance|walkable|close by|nearby only)\b/
+const DRIVE = /\b(?:i'?m driving|i am driving|i drive|i have a car|i've got a car|by car|can drive)\b/
 const DIET_PATTERNS = [
   ['vegan', /\b(?:vegan|plant[- ]based)\b/],
   ['vegetarian', /\b(?:vegetarian|veggie|no meat)\b/],
@@ -75,6 +78,7 @@ function matchPart(part) {
   const w = p.match(WITHIN)
   if (w) return { radius: snapRadius(w[1].startsWith('half') ? 0.5 : Number(w[1])) }
   if (NEAR.test(p)) return { radius: 1 } // walking distance = 1 mi
+  if (DRIVE.test(p)) return { radius: 10 } // a car: across town
   const diet = DIET_PATTERNS.find(([, re]) => re.test(p))
   if (diet) {
     // "vegan" alone or as a sentence ("I'm vegan", "no dairy"); "vegan cheese" is an item.
