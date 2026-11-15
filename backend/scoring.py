@@ -71,6 +71,17 @@ def time_ago(ts: datetime | None, now: datetime) -> str | None:
     return f"{days} day{'s' if days != 1 else ''} ago"
 
 
+
+def _eff_price(r: dict, product: dict | None) -> float:
+    """Shelf price scaled to the product's standard pack, so a 1 lb bag and a 2 lb bag compare fairly.
+    Uses unit_price x the product's standard size; falls back to the shelf price if either is missing."""
+    up = r.get("unit_price")
+    sv = (product or {}).get("size_value")
+    if up is not None and sv:
+        return round(float(up) * float(sv), 2)
+    return r["price"]
+
+
 def _fmt_unit_price(row: dict) -> str | None:
     up = row.get("unit_price")
     if up is None:
@@ -130,7 +141,7 @@ def rank_stores(
 
     max_seen: dict[str, float] = {}
     for (_, pid), r in latest.items():
-        max_seen[pid] = max(max_seen.get(pid, 0.0), r["price"])
+        max_seen[pid] = max(max_seen.get(pid, 0.0), _eff_price(r, products.get(pid)))
 
     any_out = any(
         (sid, pid) in latest and not latest[(sid, pid)]["in_stock"]
@@ -161,21 +172,25 @@ def rank_stores(
             name = products.get(pid, {}).get("name", pid)
             qty = max(int((quantities or {}).get(pid, 1)), 1)
             if r is not None and r["in_stock"]:
-                total += r["price"] * qty
+                eff = _eff_price(r, products.get(pid))
+                total += eff * qty
                 in_stock_n += 1
                 up = r.get("unit_price") if r.get("unit_price") is not None else r["price"]
                 if up <= best_unit.get(pid, float("inf")) + 1e-9:
                     pref_n += 1
                 breakdown.append({
-                    "query": q, "name": name, "price": round(r["price"], 2),
-                    "quantity": qty, "line_total": round(r["price"] * qty, 2),
+                    "query": q, "name": name, "price": round(eff, 2),
+                    "quantity": qty, "line_total": round(eff * qty, 2),
                     "unit_price": _fmt_unit_price(r), "in_stock": True,
                     "source": r.get("source"), **_freshness(r, now),
                 })
+                if abs(eff - r["price"]) > 0.005:  # this store sells a different pack size
+                    breakdown[-1]["shelf_price"] = round(r["price"], 2)
+                    breakdown[-1]["pack_note"] = "price scaled to the standard pack size"
             else:
                 total += max_seen.get(pid, 0.0) * qty
                 missing.append(q)
-                shelf = r["price"] if r else max_seen.get(pid, 0.0)
+                shelf = _eff_price(r, products.get(pid)) if r else max_seen.get(pid, 0.0)
                 breakdown.append({
                     "query": q, "name": name,
                     "price": round(shelf, 2),

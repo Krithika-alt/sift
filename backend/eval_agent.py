@@ -20,7 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from assistant import answer_question
+from assistant import answer_question, pack_price
 
 TYPES = ["cheapest", "compare", "stock", "protein", "swap"]
 
@@ -46,7 +46,7 @@ def build_cases(stores: list, products: list, prices: list) -> list:
     stocked: dict = {}
     for (sid, pid), r in latest.items():
         if r.get("in_stock") and r.get("price") is not None and sid in sname:
-            stocked.setdefault(pid, []).append((r["price"], sid))
+            stocked.setdefault(pid, []).append((pack_price(r, pmap.get(pid, {})), sid))
 
     by_type: dict = {t: [] for t in TYPES}
     for pid in sorted(stocked):
