@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { BuddyLine, DemoBadge, SectionLabel, wash } from '../components/brand.jsx'
-import PaperMap from '../components/PaperMap.jsx'
+import LeafletMap from '../components/LeafletMap.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
@@ -125,7 +125,7 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
   return (
     <div className="min-h-full pb-6">
       <div className="relative">
-        <PaperMap stores={ranked} user={user} sizes={Object.fromEntries(ranked.map((s) => [s.store_id, 'md']))} height={300} focusY={170} />
+        <LeafletMap stores={ranked} user={user} height={300} />
         <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex items-center justify-between px-5">
           <button
             type="button"

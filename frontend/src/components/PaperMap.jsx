@@ -45,7 +45,7 @@ const STREETS = [
   [[43.0715, -89.4], [43.0705, -89.385]], // Johnson St
 ]
 // Each label has a few nearby spots; the first one clear of pins and edges is used.
-const LABELS = [
+export const LABELS = [
   { text: 'Lake Mendota', spots: [[43.0905, -89.401], [43.0925, -89.41]], tilt: -2 },
   { text: 'Lake Monona', spots: [[43.0585, -89.3835], [43.0615, -89.377]], tilt: 2 },
   { text: 'State St', spots: [[43.0762, -89.3935], [43.0732, -89.3955], [43.0775, -89.398]], tilt: -1, street: true },

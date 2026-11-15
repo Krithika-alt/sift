@@ -10,10 +10,15 @@ const TABS = [
 ]
 
 /** Quiet bottom tabs: eggshell with a straight 1.5px line top rule, 64 tall plus the safe area. */
-export default function TabBar({ active, onChange }) {
+export default function TabBar({ active, onChange, hidden = false }) {
   const buddy = useBuddy()
   return (
-    <nav aria-label="Tabs" className="relative z-20 shrink-0 border-t-[1.5px] border-line bg-eggshell pb-[34px]">
+    <nav
+      aria-label="Tabs"
+      aria-hidden={hidden || undefined}
+      inert={hidden || undefined}
+      className={`relative z-20 shrink-0 border-t-[1.5px] border-line bg-eggshell pb-[34px] transition-opacity duration-[160ms] ${hidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+    >
       <ul className="flex h-16">
         {TABS.map((t) => {
           const on = t.id === active

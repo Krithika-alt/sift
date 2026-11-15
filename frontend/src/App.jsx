@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { askAgent, getProducts, health, nearbyStores, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
+import { SheetHostContext } from './components/Sheet.jsx'
 import TabBar from './components/TabBar.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
@@ -68,6 +69,11 @@ export default function App() {
   const [slapId, setSlapId] = useState(null)
   const [ask, setAsk] = useState(null)
   const [askOpen, setAskOpen] = useState(false)
+
+  const [sheetNode, setSheetNode] = useState(null)
+  const [sheetCount, setSheetCount] = useState(0)
+  const onSheetOpenChange = useCallback((d) => setSheetCount((n) => Math.max(0, n + d)), [])
+  const sheetHost = useMemo(() => ({ node: sheetNode, onOpenChange: onSheetOpenChange }), [sheetNode, onSheetOpenChange])
 
   const scrollRef = useRef(null)
   const reqId = useRef(0)
@@ -205,19 +211,21 @@ export default function App() {
 
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
   const tab = TAB_SCREENS.includes(screen) ? screen : 'bag'
-  const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen) && !askOpen && !reportOpen
+  // While a sheet is open the tab bar fades out (it keeps its space, so nothing jumps).
+  const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen)
   // Map tab: stores only, no bag. Last rank response's store list, else the mock list; by distance.
   const mapStores = useMemo(() => nearbyStores(ranked, home), [ranked, home])
 
   return (
     <BuddyContext.Provider value={buddy}>
+      <SheetHostContext.Provider value={sheetHost}>
       <div className="flex min-h-dvh items-center justify-center gap-16 bg-eggshell min-[500px]:grain">
         <SvgDefs />
         <StickerDefs />
         {/* Laptop presentation: wordmark and line to the left of the phone */}
         <div className="hidden flex-col items-start min-[900px]:flex">
           <Wordmark size={96} />
-          <p className="mt-3 font-display text-[32px] text-ink">Your list. Our pick.</p>
+          <p className="mt-3 font-display text-[32px] text-ink">We dig. You dig in.</p>
         </div>
 
         {/* iPhone viewport 390 x 844. Full screen on a phone, framed on a laptop. */}
@@ -288,7 +296,9 @@ export default function App() {
                 {screen === 'me' && <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} />}
               </main>
 
-              {showTabs && <TabBar active={tab} onChange={changeTab} />}
+              {showTabs && <TabBar active={tab} onChange={changeTab} hidden={sheetCount > 0} />}
+              {/* sheets portal here: above the tab bar, outside main's stacking context */}
+              <div ref={setSheetNode} className="contents" />
 
               <ReportPriceSheet
                 open={reportOpen}
@@ -317,6 +327,7 @@ export default function App() {
           )}
         </div>
       </div>
+      </SheetHostContext.Provider>
     </BuddyContext.Provider>
   )
 }
