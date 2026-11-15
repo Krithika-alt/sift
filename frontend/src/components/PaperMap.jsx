@@ -45,10 +45,10 @@ const STREETS = [
 ]
 const LABELS = [
   { text: 'Lake Mendota', lat: 43.0905, lon: -89.401, tilt: -2 },
-  { text: 'Lake Monona', lat: 43.0605, lon: -89.374, tilt: 2 },
+  { text: 'Lake Monona', lat: 43.0585, lon: -89.3835, tilt: 2 },
   { text: 'State St', lat: 43.0762, lon: -89.3935, tilt: -1 },
-  { text: 'University Ave', lat: 43.0717, lon: -89.4205, tilt: 2 },
-  { text: 'Capitol', lat: 43.0775, lon: -89.3842, tilt: 3 },
+  { text: 'University Ave', lat: 43.0768, lon: -89.4325, tilt: 2 },
+  { text: 'Capitol', lat: 43.0712, lon: -89.3795, tilt: 3 },
   { text: 'UW campus', lat: 43.0768, lon: -89.4095, tilt: -3 },
 ]
 const PIN_PX = { sm: 30, md: 34, lg: 40 }
