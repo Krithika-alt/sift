@@ -15,6 +15,7 @@ from assistant import answer_question, _intent
 from data_source import get_data_source
 from matching import match_items
 from genie import genie_enabled, ask_genie
+from parse_list import parse_list
 from scoring import rank_stores
 
 app = FastAPI(title="Sift API")
@@ -40,6 +41,10 @@ class RankRequest(BaseModel):
     items: list[str] = Field(min_length=1)
     weights: Weights = Weights()
     budget: Optional[float] = None
+
+
+class ParseListRequest(BaseModel):
+    text: str
 
 
 class ReportPriceRequest(BaseModel):
@@ -71,6 +76,14 @@ def health():
 @app.get("/api/products")
 def products():
     return [{"product_id": p["product_id"], "name": p["name"]} for p in get_data_source().products()]
+
+
+@app.post("/api/parse-list")
+def parse_list_endpoint(req: ParseListRequest):
+    """Split a spoken/typed list ("milk, eggs and greek yogurt") into separate matched items.
+    The frontend sends the speech-to-text transcript here, shows the items, then passes
+    `rank_items` straight to /api/rank-stores."""
+    return parse_list(req.text, get_data_source().products())
 
 
 @app.post("/api/rank-stores")

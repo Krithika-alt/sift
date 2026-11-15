@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import re
 
-SWAP_WORDS = ("swap", "cheaper", "save money", "saving", "substitut", "alternative", "instead", "replace")
+SWAP_WORDS = ("swap", "save money", "saving", "substitut", "alternative", "instead", "replace")
+STOCK_WORDS = ("in stock", "do not have", "don't have", "does not have", "doesn't have", "out of stock", "not carry")
+PRICE_WORDS = ("cheapest", "cheaper", "lowest price", "best price", "how much", "price of", "cost")
 PROTEIN_CATEGORIES = {"protein", "meat", "poultry", "seafood", "eggs", "meat & seafood",
                       "meat and seafood", "meat/seafood", "meat & poultry"}
 PROTEIN_WORDS = ("chicken", "beef", "pork", "turkey", "egg", "tofu", "tuna", "salmon", "bean",
@@ -49,6 +51,10 @@ def _intent(question: str) -> str:
         return "protein"
     if any(w in q for w in SWAP_WORDS):
         return "swap"
+    if any(w in q for w in STOCK_WORDS):
+        return "stock"
+    if any(w in q for w in PRICE_WORDS):
+        return "price"
     return "why"
 
 
@@ -212,13 +218,89 @@ def swap_answer(data: dict, ranking: dict | None) -> dict:
     return {"answer": " ".join(parts), "facts_used": facts}
 
 
+def _find_product(question: str, products: list) -> dict | None:
+    """The product whose name (or search term) appears in the question; longest match wins."""
+    q = question.lower()
+    best, best_len = None, 0
+    for p in products:
+        names = [(p.get("name") or "").lower()]
+        names.append(names[0].split(",")[0].strip())
+        names += [t.strip().lower() for t in (p.get("search_terms") or "").split(",") if len(t.strip()) >= 4]
+        for n in names:
+            if n and n in q and len(n) > best_len:
+                best, best_len = p, len(n)
+    return best
+
+
+def pair_answer(question: str, data: dict) -> dict | None:
+    """'At <store>, is <product A> cheaper than <product B>?' -> both prices and the gap."""
+    stores, products, latest = _index(data)
+    q = question.lower()
+    if not (("store-brand" in q or "store brand" in q) and ("name-brand" in q or "name brand" in q)):
+        return None  # only for explicit store-brand vs name-brand questions
+    named = [p for p in products.values() if (p.get("name") or "").lower() in q]
+    store = _find_named_store(question, list(stores.values()))
+    if len(named) < 2 or not store:
+        return None
+    rows = []
+    for p in named:
+        r = latest.get((store["store_id"], p["product_id"]))
+        if _in_stock(r):
+            rows.append((r["price"], p, r))
+    if len(rows) < 2:
+        return None
+    rows.sort(key=lambda x: x[0])
+    parts = [f"{p['name']} ${price:.2f} [{_label(r.get('source'))}]" for price, p, r in rows]
+    gap = rows[-1][0] - rows[0][0]
+    answer = (f"At {store['name']}: {'; '.join(parts)}. "
+              f"{rows[0][1]['name']} is cheaper by ${gap:.2f}.")
+    return {"answer": answer, "facts_used": parts}
+
+
+def price_answer(question: str, data: dict) -> dict:
+    """Cheapest store (with every store's price and the gap) for the product named in the question."""
+    stores, products, latest = _index(data)
+    p = _find_product(question, list(products.values()))
+    if not p:
+        return {"answer": "I couldn't tell which product you mean. Try the full product name, for example "
+                          "'Large eggs, 12 ct'.", "facts_used": []}
+    rows = sorted(((r["price"], sid, r) for (sid, pid), r in latest.items()
+                   if pid == p["product_id"] and _in_stock(r) and sid in stores), key=lambda x: x[0])
+    if not rows:
+        return {"answer": f"No store has an in-stock price for {p['name']} in our tables.", "facts_used": []}
+    low = rows[0]
+    parts = []
+    for i, (price, sid, r) in enumerate(rows):
+        gap = f" (+${price - low[0]:.2f})" if i else ""
+        parts.append(f"{stores[sid]['name']} ${price:.2f}{gap} [{_label(r.get('source'))}]")
+    answer = (f"The cheapest {p['name']} is ${low[0]:.2f} at {stores[low[1]]['name']}. "
+              f"All stores: {'; '.join(parts)}.")
+    return {"answer": answer, "facts_used": parts}
+
+
+def stock_answer(question: str, data: dict) -> dict:
+    stores, products, latest = _index(data)
+    p = _find_product(question, list(products.values()))
+    if not p:
+        return {"answer": "I couldn't tell which product you mean.", "facts_used": []}
+    lacking = [s["name"] for sid, s in stores.items() if not _in_stock(latest.get((sid, p["product_id"])))]
+    if not lacking:
+        return {"answer": f"Every store in our tables has {p['name']} in stock.", "facts_used": []}
+    ans = f"{p['name']} is not in stock (or has no price) at: {', '.join(lacking)}."
+    return {"answer": ans, "facts_used": [ans]}
+
+
 def answer_question(question: str, ranking: dict | None, data: dict | None = None) -> dict:
     intent = _intent(question)
-    if intent in ("protein", "swap") and data is None:
+    if intent in ("protein", "swap", "stock", "price") and data is None:
         return {"answer": "I don't have access to the price tables right now, so I can only explain a ranking.",
                 "facts_used": []}
     if intent == "protein":
         return protein_answer(data)
     if intent == "swap":
         return swap_answer(data, ranking)
+    if intent == "stock":
+        return stock_answer(question, data)
+    if intent == "price":
+        return pair_answer(question, data) or price_answer(question, data)
     return explain_ranking(question, ranking)
