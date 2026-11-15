@@ -87,6 +87,7 @@ export default function App() {
   const [savedAt, setSavedAt] = useState(null) // the saved bag open on the Saved Bag screen
   const [savedFrom, setSavedFrom] = useState('saved')
   const [toast, setToast] = useState(null)
+  const [meEdit, setMeEdit] = useState(null) // open a Me editor on arrival (the Bag's location pill -> 'home')
 
   const [sheetNode, setSheetNode] = useState(null)
   const [sheetCount, setSheetCount] = useState(0)
@@ -289,6 +290,10 @@ export default function App() {
                     onSave={saveCurrentBag}
                     onOpenSaved={(at) => openSaved(at, 'bag')}
                     onSift={() => sift()}
+                    onPlace={() => {
+                      setMeEdit('home')
+                      setScreen('me')
+                    }}
                     demo={demo}
                     place={place}
                     userName={profile.name}
@@ -311,6 +316,7 @@ export default function App() {
                     onEditBag={() => setScreen('bag')}
                     onAsk={askBuddy}
                     user={home}
+                    bagSummary={`${bag.items.filter(isRankable).length} items · $${budget}`}
                   />
                 )}
                 {screen === 'receipt' && receiptStore && (
@@ -352,7 +358,9 @@ export default function App() {
                     }}
                   />
                 )}
-                {screen === 'me' && <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} />}
+                {screen === 'me' && (
+                  <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} initialEdit={meEdit} onEditOpened={() => setMeEdit(null)} />
+                )}
               </main>
 
               {showTabs && <TabBar active={tab} onChange={changeTab} hidden={sheetCount > 0} />}

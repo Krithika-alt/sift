@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { BuddyLine, DemoBadge, SectionLabel, wash } from '../components/brand.jsx'
+import { BackButton, BuddyLine, DemoBadge, SectionLabel, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
@@ -116,7 +116,7 @@ function RunnerRow({ store, n, ctx, onReceipt }) {
   )
 }
 
-export default function Results({ ranked, mode, onMode, budget, demo, fellBack, busy, slapId, onReceipt, onEditBag, onAsk, user }) {
+export default function Results({ ranked, mode, onMode, budget, demo, fellBack, busy, slapId, onReceipt, onEditBag, onAsk, user, bagSummary }) {
   const buddy = useBuddy()
   const allSimulated = ranked.every((s) => priceCounts(s).real === 0)
   const bestUnitId = ranked.reduce((a, s) => (!a || s.unit_price_savings_pct > a.unit_price_savings_pct ? s : a), null)?.store_id
@@ -126,18 +126,19 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
     <div className="min-h-full pb-6">
       <div className="relative">
         <LeafletMap stores={ranked} user={user} height={300} />
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex items-center justify-between px-5">
-          <button
-            type="button"
-            onClick={onEditBag}
-            aria-label="Back to my bag"
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-line bg-eggshell text-ink"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 5l-7 7 7 7" />
-            </svg>
-          </button>
-          {demo && <DemoBadge />}
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex h-11 items-center justify-between px-5">
+          <span data-map-avoid>
+            <BackButton onClick={onEditBag} label="Back to my bag" />
+          </span>
+          <span data-map-avoid className="pointer-events-auto flex items-center gap-2">
+            {demo && <DemoBadge />}
+            {/* bag summary pill on a butter wash */}
+            <button type="button" onClick={onEditBag} aria-label={`Your bag: ${bagSummary}. Edit`} className="flex min-h-11 items-center active:scale-[0.98]">
+              <span className="flex h-8 items-center rounded-2xl px-3 text-[13px] font-semibold text-ink" style={{ background: wash('butter', 45, 'var(--eggshell)') }}>
+                {bagSummary}
+              </span>
+            </button>
+          </span>
         </div>
       </div>
 

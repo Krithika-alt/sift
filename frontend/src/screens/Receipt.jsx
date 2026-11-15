@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BottomBar, BuddyLine, DemoBadge, TornEdge, wash } from '../components/brand.jsx'
+import { BackButton, BottomBar, BuddyLine, DemoBadge, TornEdge, wash } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
 
@@ -52,12 +52,10 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
   return (
     <div className="flex min-h-full flex-col">
       <div className="px-5 pb-6 pt-14">
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={onBack} className="-ml-1 min-h-11 pr-4 text-[17px] font-semibold text-ink">
-            ‹ Results
-          </button>
+        <header className="flex h-11 items-center justify-between">
+          <BackButton onClick={onBack} label="Back to results" />
           {demo && <DemoBadge />}
-        </div>
+        </header>
 
         <div className="mt-4">
           <BuddyLine size={64} text={28} splotch>

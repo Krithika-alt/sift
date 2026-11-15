@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import BagItems from '../components/BagItems.jsx'
-import { BuddyLine, DemoBadge, LandingSticker, PrimaryButton, Pulse, SectionLabel, TornEdge } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, LandingSticker, PrimaryButton, Pulse, SectionLabel, TornEdge, tint } from '../components/brand.jsx'
 import PastBagCard from '../components/PastBagCard.jsx'
 import Sticker from '../components/Sticker.jsx'
 import Wordmark from '../components/Wordmark.jsx'
@@ -17,7 +17,7 @@ export function BookmarkIcon({ filled }) {
   )
 }
 
-export default function Bag({ bag, setBag, budget, products, pastBags, saved, onSave, onOpenSaved, onSift, demo, place, userName }) {
+export default function Bag({ bag, setBag, budget, products, pastBags, saved, onSave, onOpenSaved, onSift, onPlace, demo, place, userName }) {
   const buddy = useBuddy()
   const [tomLine, setTomLine] = useState(null) // null = the default greeting
   const [status, setStatus] = useState({ listening: false, parsing: false })
@@ -42,11 +42,24 @@ export default function Bag({ bag, setBag, budget, products, pastBags, saved, on
   return (
     <div className="flex min-h-full flex-col">
       <div className="px-5 pb-6 pt-14">
-        <header className="flex items-center justify-between gap-3">
+        <header className="flex h-11 items-center justify-between gap-3">
           <Wordmark size={34} />
           <span className="flex items-center gap-2">
-            <span className="whitespace-nowrap text-[14px] font-semibold text-muted">Near {place}</span>
             {demo && <DemoBadge />}
+            {/* location pill: opens Home base in Me */}
+            <button
+              type="button"
+              onClick={onPlace}
+              aria-label={`Near ${place}. Change home base`}
+              className="flex min-h-11 items-center transition-transform active:scale-[0.98]"
+            >
+              <span className="flex h-8 items-center gap-1.5 rounded-2xl px-3 text-[13px] font-semibold text-ink" style={{ background: tint('sardine', 18) }}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2.5c-3.9 0-7 3-7 6.9 0 5 7 12.1 7 12.1s7-7.1 7-12.1c0-3.9-3.1-6.9-7-6.9zm0 9.4a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                </svg>
+                <span className="whitespace-nowrap">Near {place}</span>
+              </span>
+            </button>
           </span>
         </header>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BuddySplotch, PrimaryButton, SectionLabel } from '../components/brand.jsx'
 import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
@@ -41,9 +41,13 @@ function Choice({ on, onClick, children }) {
 }
 
 /** Me: buddy, details (name, home base, diet, weekly budget, default sort). Saves immediately. */
-export default function Me({ profile, setProfile, onChangeBuddy }) {
+export default function Me({ profile, setProfile, onChangeBuddy, initialEdit = null, onEditOpened }) {
   const buddy = useBuddy()
-  const [editing, setEditing] = useState(null) // 'name' | 'home' | 'diet' | 'budget' | 'sort'
+  const [editing, setEditing] = useState(initialEdit) // 'name' | 'home' | 'diet' | 'budget' | 'sort'
+  useEffect(() => {
+    if (initialEdit) onEditOpened?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [draft, setDraft] = useState('')
   const [geoMsg, setGeoMsg] = useState('')
   const update = (patch) => setProfile((p) => ({ ...p, ...patch }))
