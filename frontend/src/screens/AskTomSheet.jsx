@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { MyBuddy, PrimaryButton, Pulse } from '../components/brand.jsx'
@@ -20,6 +21,29 @@ export const askChips = (best) => {
 
 // Headlines up to this many characters are handwritten (Darumadrop 24); longer ones are Karla 700 18.
 const HANDWRITTEN_MAX = 60
+
+/**
+ * The buddy's reply: a flat receipt-paper speech bubble beside the buddy, with a small tail
+ * pointing back at it, so the sheet reads like a short conversation. No shadow, no gradient.
+ */
+function SpeechBubble({ children }) {
+  return (
+    <div className="flex items-start gap-3">
+      <MyBuddy size={48} style={{ marginTop: 4, flexShrink: 0 }} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        style={{ originX: 0, originY: 0 }}
+        className="relative min-w-0 flex-1 rounded-[16px] rounded-tl-[6px] border-[1.5px] border-line bg-receipt px-4 py-3"
+      >
+        {/* the tail: a small square turned 45deg, bordered on its two outer sides */}
+        <span aria-hidden="true" className="absolute -left-[7.5px] top-[18px] h-3 w-3 rotate-45 border-b-[1.5px] border-l-[1.5px] border-line bg-receipt" />
+        <div className="relative">{children}</div>
+      </motion.div>
+    </div>
+  )
+}
 
 // If the answer starts with the same sentence as the headline, don't say it twice.
 function answerBody(answer = '', headline = '') {
@@ -52,21 +76,21 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
 
       <div aria-live="polite" className="mt-2 pb-2">
         {ask?.status === 'loading' && (
-          <div className="flex items-center gap-3 py-6">
-            <MyBuddy size={64} />
-            <p className="font-display text-[28px] text-ink">
-              <Pulse>Thinking</Pulse>
-            </p>
+          <div className="py-4">
+            <SpeechBubble>
+              <p className="font-display text-[24px] leading-[1.2] text-ink">
+                <Pulse>Thinking</Pulse>
+              </p>
+            </SpeechBubble>
           </div>
         )}
 
         {ask?.status === 'error' && (
           <div className="py-4">
-            <div className="flex items-center gap-3">
-              <MyBuddy size={60} />
+            <SpeechBubble>
               <p className="font-display text-[24px] leading-tight text-ink">I couldn't get an answer just now.</p>
-            </div>
-            <p className="mt-3 text-[17px] text-ink">The shelves are slow to answer. Try again in a moment.</p>
+              <p className="mt-2 text-[17px] leading-[1.5] text-ink">The shelves are slow to answer. Try again in a moment.</p>
+            </SpeechBubble>
             <PrimaryButton className="mt-5" onClick={onRetry}>
               Try again
             </PrimaryButton>
@@ -75,16 +99,15 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
 
         {ask?.status === 'done' && data && (
           <div>
-            <div className="flex items-start gap-3">
-              <MyBuddy size={56} style={{ marginTop: 2 }} />
+            <SpeechBubble>
               {/* wraps, never truncated. Darumadrop only for short lines; long ones read better in Karla. */}
               {String(data.headline ?? '').length <= HANDWRITTEN_MAX ? (
-                <p className="min-w-0 font-display text-[24px] leading-[1.2] text-ink">{data.headline}</p>
+                <p className="font-display text-[24px] leading-[1.2] text-ink">{data.headline}</p>
               ) : (
-                <p className="min-w-0 pt-1 text-[18px] font-bold leading-[1.35] text-ink">{data.headline}</p>
+                <p className="text-[18px] font-bold leading-[1.35] text-ink">{data.headline}</p>
               )}
-            </div>
-            {body && <p className="mt-4 text-[17px] leading-[1.5] text-ink">{body}</p>}
+              {body && <p className="mt-3 text-[17px] leading-[1.5] text-ink">{body}</p>}
+            </SpeechBubble>
 
             <div className="mt-4">
               {data.source === 'genie' && data.verified ? (
