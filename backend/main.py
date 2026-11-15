@@ -11,9 +11,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from assistant import answer_question
+from assistant import answer_question, _intent
 from data_source import get_data_source
 from matching import match_items
+from genie import genie_enabled, ask_genie
 from scoring import rank_stores
 
 app = FastAPI(title="Sift API")
@@ -104,4 +105,11 @@ def report_price(req: ReportPriceRequest):
 def ask_agent(req: AskRequest):
     ds = get_data_source()
     data = {"stores": ds.stores(), "products": ds.products(), "prices": ds.latest_prices()}
-    return answer_question(req.question, req.ranking, data)
+    if genie_enabled() and _intent(req.question) != "why":
+        try:
+            return ask_genie(req.question)
+        except Exception:
+            pass  # fall back to the grounded answers below
+    out = answer_question(req.question, req.ranking, data)
+    out["source"] = "grounded"
+    return out
