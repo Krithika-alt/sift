@@ -81,3 +81,18 @@ def test_why_mentions_stale_prices():
           "items_breakdown": [{"name": "Eggs", "stale": True, "price_age": "9 days ago"}]}]}
     r = answer_question("Why did this store win?", rk)
     assert "over a week old" in r["answer"] and "9 days ago" in r["answer"]
+
+
+def test_price_question_answers_from_tables():
+    d = _data()
+    r = answer_question("Which store has the cheapest Large eggs, 12 ct?", None, d)
+    rows = [x for x in d["prices"] if x["product_id"] == "eggs_large_12" and x["in_stock"]]
+    best = min(rows, key=lambda x: x["price"])
+    assert f"{best['price']:.2f}" in r["answer"]
+    assert "cheaper" not in _intent("Which is cheaper, eggs at A or B?") or _intent("Which is cheaper, eggs at A or B?") == "price"
+
+
+def test_stock_question_and_unknown_product():
+    d = _data()
+    assert answer_question("Which stores do not have Large eggs, 12 ct in stock?", None, d)["answer"]
+    assert "couldn't tell" in answer_question("cheapest unobtainium?", None, d)["answer"]

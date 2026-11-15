@@ -125,7 +125,8 @@ class DatabricksData:
                 {"product_id": r["product_id"], "name": r["name"],
                  "search_terms": r.get("search_terms") or "", "category": r.get("category"),
                  "size_value": _f(r.get("size_value")), "size_unit": r.get("size_unit"),
-                 "dietary_tags": r.get("dietary_tags") or ""}
+                 "dietary_tags": r.get("dietary_tags") or "",
+                 "brand_tier": r.get("brand_tier")}
                 for r in rows
             ]
         return list(self._products)
