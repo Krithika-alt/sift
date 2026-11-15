@@ -1,0 +1,9 @@
+store_id,product_id,price,size_value,size_unit,in_stock,source,observed_at,source_url,notes
+target_state_st,eggs_large_12,1.79,12,ct,true,website,2026-11-14 17:15:00,https://www.target.com/s?searchTerm=large+eggs+12+ct,Good & Gather Grade A Large Eggs 12ct; store set to Madison State Street
+target_state_st,oats_rolled,6.49,42,oz,true,website,2026-11-14 17:15:00,https://www.target.com/s?searchTerm=old+fashioned+oats,Quaker Old Fashioned Oats 42oz (Good & Gather version listed $3.49-$4.79 but size not shown)
+target_state_st,greek_yogurt_32oz,3.49,32,oz,true,website,2026-11-14 17:15:00,https://www.target.com/p/greek-plain-yogurt-32oz-good-gather/-/A-94895373,Good & Gather Greek Plain Nonfat Yogurt 32oz
+target_state_st,chicken_breast_lb,3.99,1,lb,true,website,2026-11-14 17:15:00,https://www.target.com/s?searchTerm=boneless+skinless+chicken+breast,Good & Gather Boneless Skinless Chicken Breast $3.99/lb (value pack is $2.29/lb)
+target_state_st,bananas_each,0.39,1,ct,true,website,2026-11-14 17:15:00,https://www.target.com/s?searchTerm=bananas,Good & Gather Fresh Banana each
+trader_joes_monroe,greek_yogurt_32oz,5.49,32,oz,true,website,2026-11-14 17:15:00,https://www.traderjoes.com/home/products/pdp/greek-nonfat-yogurt-plain-095732,TJ's Greek Nonfat Yogurt Plain 32oz; store set to Madison
+trader_joes_monroe,chicken_breast_lb,7.49,1,lb,true,website,2026-11-14 17:15:00,https://www.traderjoes.com/home/products/pdp/organic-free-range-boneless-skinless-chicken-breasts-063550,Only organic free range listed online
+trader_joes_monroe,bananas_each,0.23,1,ct,true,website,2026-11-14 17:15:00,https://www.traderjoes.com/home/products/pdp/bananas-048053,TJ's Bananas each

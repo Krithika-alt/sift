@@ -1,0 +1,15 @@
+store_id,product_id,price,size_value,size_unit,in_stock,source,observed_at,source_url,notes
+target_state_st,milk_2pct_gal,4.19,1,gal,true,website,2026-11-14 18:00:00,https://www.target.com/s?searchTerm=2%25+milk+gallon,Good & Gather 2% Reduced Fat Milk 1gal
+target_state_st,milk_2pct_gal_name,5.29,1,gal,true,website,2026-11-14 18:00:00,https://www.target.com/s?searchTerm=kemps+2%25+milk,Kemps 2% Milk 1gal
+target_state_st,pb_creamy_16oz,2.89,16,oz,true,website,2026-11-14 18:00:00,https://www.target.com/s?searchTerm=creamy+peanut+butter+16oz,Good & Gather Creamy Peanut Butter 16oz
+target_state_st,pb_creamy_16oz_name,3.99,16,oz,true,website,2026-11-14 18:00:00,https://www.target.com/s?searchTerm=jif+creamy+peanut+butter+16oz,Jif Creamy Peanut Butter 16oz
+target_state_st,greek_yogurt_32oz_name,6.49,32,oz,true,website,2026-11-14 18:00:00,https://www.target.com/s?searchTerm=plain+nonfat+greek+yogurt+32oz,Chobani Plain Nonfat Greek Yogurt 32oz
+trader_joes_monroe,pb_creamy_16oz,4.49,16,oz,true,website,2026-11-14 18:00:00,https://www.traderjoes.com/home/products/pdp/organic-creamy-peanut-butter-salted-valencia-053441,TJ's Organic Creamy Peanut Butter Salted Valencia 16oz (only creamy PB listed; organic)
+fresh_madison_market,eggs_large_12,2.39,12,ct,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=large%20eggs&search_option_id=product,Our Family Large Eggs Dozen
+fresh_madison_market,oats_rolled,3.99,42,oz,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=old%20fashioned%20oats&search_option_id=product,Our Family Old Fashioned Oats 42oz; sale price ends 11/14 (regular $5.49)
+fresh_madison_market,greek_yogurt_32oz_name,7.49,32,oz,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=plain%20greek%20yogurt%2032%20oz&search_option_id=product,Chobani Greek Non-fat Plain Yogurt 32oz (store-brand plain not listed)
+fresh_madison_market,chicken_breast_lb,6.99,1,lb,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=boneless%20skinless%20chicken%20breast&search_option_id=product,Boneless Skinless Chicken Breasts $6.99/lb
+fresh_madison_market,bananas_each,0.28,1,ct,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=bananas&search_option_id=product,Yellow Bananas $0.69/lb x store's stated approx 0.4 lb per banana
+fresh_madison_market,milk_2pct_gal_name,5.19,1,gal,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=reduced%20fat%20milk&search_option_id=product,Kemps 2% Reduced Fat Milk 1gal (sale; no store-brand milk listed)
+fresh_madison_market,pb_creamy_16oz,2.39,16,oz,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=creamy%20peanut%20butter&search_option_id=product,Our Family Creamy Peanut Butter 16oz (sale; regular $2.49)
+fresh_madison_market,pb_creamy_16oz_name,3.39,16,oz,true,website,2026-11-14 18:00:00,https://shop.freshmadisonmarket.com/shop#!/?q=creamy%20peanut%20butter&search_option_id=product,Jif Peanut Butter Creamy 16oz
