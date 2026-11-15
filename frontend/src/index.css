@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* Brand tokens (docs/build-plan.md, "Colors"). 60/30/10: eggshell page, earth surfaces, sticker colors. */
+:root {
+  --eggshell: #F7F1E3; /* page background (faint grain) */
+  --receipt: #FFFCF5;  /* cards and receipts */
+  --ink: #2B1D18;      /* all text, primary buttons, selected segment */
+  --muted: #6E5A4E;    /* secondary text */
+  --line: #DCCDB2;     /* dashed and dotted rules, card borders */
+  --kraft: #D9BE90;    /* the bag (list card) and bottom sheets only */
+  --soil: #4A2E22;     /* splash, app icon, hero logo only */
+  --leaf: #A6C566;     /* logo leaf on soil */
+  --olive: #56603A;    /* logo leaf on eggshell; sticker (eggshell text) */
+
+  /* Sticker colors, equal weight */
+  --clementine: #F08A3C;
+  --butter: #F0CB5C;
+  --pea: #9DBE5A;
+  --sardine: #7DA3E0;
+  --radish: #F2A7B5;
+  --tomato: #C8402A;
+  --beet: #7A2A40;
+}
+
+@theme inline {
+  --color-eggshell: var(--eggshell);
+  --color-receipt: var(--receipt);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-kraft: var(--kraft);
+  --color-soil: var(--soil);
+  --color-leaf: var(--leaf);
+  --color-olive: var(--olive);
+  --color-clementine: var(--clementine);
+  --color-butter: var(--butter);
+  --color-pea: var(--pea);
+  --color-sardine: var(--sardine);
+  --color-radish: var(--radish);
+  --color-tomato: var(--tomato);
+  --color-beet: var(--beet);
+
+  /* Darumadrop speaks, Karla explains, Courier counts. */
+  --font-display: "Darumadrop One", "Karla", system-ui, sans-serif;
+  --font-sans: "Karla", system-ui, -apple-system, sans-serif;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--eggshell);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Paper grain: fine pale flecks, light and dark, very low opacity. Never coarse pixel noise. */
+.grain {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.17 0 0 0 0 0.11 0 0 0 0 0.09 0 0 0 2.2 -1.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 2.4 -1.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)' opacity='0.35'/%3E%3C/svg%3E");
+}
+
+/* Courier Prime label: 700, uppercase, wide tracking. */
+.label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.dotted-leader {
+  flex: 1;
+  border-bottom: 2px dotted var(--line);
+  transform: translateY(-4px);
+  margin: 0 6px;
+  min-width: 12px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+.dot-pulse span {
+  animation: dot-pulse 1.8s ease-in-out infinite;
+}
+.dot-pulse span:nth-child(2) { animation-delay: 0.3s; }
+.dot-pulse span:nth-child(3) { animation-delay: 0.6s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
