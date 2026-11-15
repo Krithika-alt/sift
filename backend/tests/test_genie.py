@@ -61,10 +61,14 @@ def test_failed_status_raises(env, monkeypatch):
 
 
 def test_api_uses_genie_then_falls_back(env, monkeypatch):
+    import agent
+    monkeypatch.setenv("GENIE_OPEN_ENDED", "1")   # protein/swap go to Genie only when opted in
+    agent._CACHE.clear()
     c = TestClient(main.app)
     _fake(monkeypatch, ["COMPLETED"])
     r = c.post("/api/ask-agent", json={"question": "Cheapest protein per dollar?", "ranking": RK}).json()
     assert r["source"] == "genie"
+    agent._CACHE.clear()
     _fake(monkeypatch, ["FAILED"])
     r = c.post("/api/ask-agent", json={"question": "Cheapest protein per dollar?", "ranking": RK}).json()
     assert r["source"] == "grounded" and r["answer"]

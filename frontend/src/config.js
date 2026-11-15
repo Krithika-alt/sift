@@ -7,10 +7,10 @@ export const API_BASE = (import.meta.env.VITE_API_BASE || 'http://localhost:8000
 export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || params.get('demo') === '1'
 
 // Fall back to mock data if the backend errors or takes longer than this.
-export const FALLBACK_TIMEOUT_MS = 4000
+export const FALLBACK_TIMEOUT_MS = 15000
 
 export const DEFAULT_LOCATION = { lat: 43.0727, lon: -89.4015, label: 'Grainger Hall' }
-export const DEMO_BASKET = ['eggs', 'oats', 'greek yogurt', 'chicken breast', 'bananas'].map((t) => ({ label: t, rank: t, quantity: 1 }))
+export const DEMO_BASKET = []
 export const DEFAULT_BUDGET = 20
 
 // Segmented control weights for price / distance / preference.

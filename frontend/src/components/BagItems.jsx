@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { parseList } from '../api/client.js'
 import Sticker from './Sticker.jsx'
-import { isRankable, itemKey, isDashed, parseEntry, productItem, shortName, typedItem, voiceItems } from '../lib/bag.js'
+import { isRankable, itemKey, isDashed, mergeRows, parseEntry, productItem, shortName, typedItem, voiceItems } from '../lib/bag.js'
 import { needsLine, parseNeeds } from '../lib/needs.js'
 import { useSpeech } from '../lib/useSpeech.js'
 
@@ -83,11 +83,7 @@ export default function BagItems({ bag, setBag, products, inputId = 'bag-input',
   const [parsing, setParsing] = useState(false)
 
   function addItems(rows) {
-    setBag((b) => {
-      const have = new Set(b.items.map(itemKey))
-      const fresh = rows.filter((r) => !have.has(itemKey(r)) && have.add(itemKey(r)))
-      return { ...b, items: [...b.items, ...fresh] }
-    })
+    setBag((b) => ({ ...b, items: mergeRows(b.items, rows) }))
   }
 
   // Voice: final transcript -> POST /api/parse-list -> editable rows in the bag (the confirm step).
@@ -151,7 +147,7 @@ export default function BagItems({ bag, setBag, products, inputId = 'bag-input',
         : b.items.map((i) => (i === item ? next : i))
       return { ...b, items }
     })
-  const confirmRow = (item) => settleRow(item, { label: item.label, rank: item.rank, quantity: item.quantity, status: 'ok' })
+  const confirmRow = (item) => settleRow(item, { label: item.label, rank: item.rank, quantity: item.quantity, status: 'ok', product_id: item.product_id })
   const pickSuggestion = (item, name) => settleRow(item, productItem(name, item.quantity))
   // "Edit" puts what was said back in the input.
   const retype = (item) => {

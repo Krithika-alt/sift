@@ -38,9 +38,35 @@ export function voiceItems({ items = [], rank_items = [], unmatched = [] }) {
     const rank = typeof ri === 'string' ? ri : ri?.text ?? it.name ?? it.text
     const name = it.name ?? it.text
     return it.needs_confirm
-      ? { label: name, rank, quantity, status: 'confirm', said: it.text }
-      : { label: name, rank, quantity, status: 'ok' }
+      ? { label: name, rank, quantity, status: 'confirm', said: it.text, product_id: it.product_id }
+      : { label: name, rank, quantity, status: 'ok', product_id: it.product_id }
   })
+}
+
+// Add rows to the bag without duplicating a product. A new row for a product that is already in the bag
+// (same product_id, or a short typed row such as "eggs" whose words are inside "Large eggs, 12 ct")
+// updates that row and keeps the larger quantity, instead of adding a second row.
+// Two rows for the same product would be counted twice by the ranking.
+function sameProduct(a, b) {
+  if (itemKey(a) === itemKey(b)) return true
+  if (a.product_id && b.product_id) return a.product_id === b.product_id
+  const x = norm(a.label ?? '')
+  const y = norm(b.label ?? '')
+  return Boolean(x && y) && (x.includes(y) || y.includes(x))
+}
+
+export function mergeRows(items, rows) {
+  const out = [...items]
+  for (const r of rows) {
+    if ((r.status ?? 'ok') !== 'ok') {
+      if (!out.some((o) => itemKey(o) === itemKey(r))) out.push(r)
+      continue
+    }
+    const i = out.findIndex((o) => (o.status ?? 'ok') === 'ok' && sameProduct(o, r))
+    if (i === -1) out.push(r)
+    else out[i] = { ...out[i], ...r, quantity: Math.min(99, Math.max(out[i].quantity ?? 1, r.quantity ?? 1)) }
+  }
+  return out
 }
 
 export const isDashed = (item) => item.status === 'confirm' || item.status === 'missing'

@@ -1,5 +1,12 @@
 import agent
+import pytest
 from data_source import MockData
+
+
+@pytest.fixture(autouse=True)
+def _fresh_cache(monkeypatch):
+    agent._CACHE.clear()
+    monkeypatch.delenv("GENIE_OPEN_ENDED", raising=False)
 
 
 def _data():
@@ -51,7 +58,8 @@ def test_genie_failure_falls_back_and_why_skips_genie():
     assert not called and out["source"] == "grounded"
 
 
-def test_open_ended_questions_trust_genie():
+def test_open_ended_questions_trust_genie(monkeypatch):
+    monkeypatch.setenv("GENIE_OPEN_ENDED", "1")
     d = _data()
     g = {"answer": "Switch to store brand.", "facts_used": ["Genie row: x"], "source": "genie"}
     out = agent.respond("Cheapest protein per dollar?", None, d, lambda q: dict(g))
@@ -61,3 +69,27 @@ def test_open_ended_questions_trust_genie():
 def test_no_internal_keys_leak():
     out = agent.respond(Q, None, _data(), None)
     assert "verify" not in out and out["headline"]
+
+
+def test_swap_and_protein_are_instant_from_tables_by_default():
+    d = _data()
+    def boom(q):
+        raise AssertionError("Genie must not be called for swap/protein by default")
+    for q in ("Cheaper swap?", "Which protein item has the lowest unit price per oz?"):
+        out = agent.respond(q, None, d, boom)
+        assert out["source"] == "grounded"
+
+
+def test_repeated_question_is_served_from_cache_and_new_price_invalidates_it():
+    d = _data()
+    name, price = _truth(d)
+    calls = []
+    def genie(q):
+        calls.append(q)
+        return {"answer": f"{name} at ${price}", "facts_used": [], "source": "genie"}
+    first = agent.respond(Q, None, d, genie)
+    second = agent.respond(Q, None, d, genie)
+    assert len(calls) == 1 and second["answer"] == first["answer"] and second["verified"] is True
+    d["prices"][0] = {**d["prices"][0], "price": d["prices"][0]["price"] + 0.01}   # a price changed
+    agent.respond(Q, None, d, genie)
+    assert len(calls) == 2
