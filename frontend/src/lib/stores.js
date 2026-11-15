@@ -65,6 +65,10 @@ export function reasonLine(ranked, budget) {
   return 'Good price, short walk.'
 }
 
-export function appleMapsUrl(store) {
-  return `https://maps.apple.com/?daddr=${store.lat},${store.lon}&dirflg=w`
+// Directions with no travel mode, so the user picks walking, driving or transit in Maps.
+const isApple = () => typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Macintosh|Mac OS X/.test(navigator.userAgent)
+export function directionsUrl(store) {
+  return isApple()
+    ? `https://maps.apple.com/?daddr=${store.lat},${store.lon}&q=${encodeURIComponent(store.name)}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lon}`
 }

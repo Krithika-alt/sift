@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { BottomBar, BuddyLine, DemoBadge, TornEdge } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { appleMapsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, walkMinutes } from '../lib/stores.js'
+import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, walkMinutes } from '../lib/stores.js'
 
 function Barcode({ seed }) {
   const bars = useMemo(() => {
@@ -25,6 +25,13 @@ function Barcode({ seed }) {
       ))}
     </svg>
   )
+}
+
+// "SMALLER PACK · SHELF $1.49 · SHOWN PER 2 LB FOR A FAIR COMPARE". shelf_price is never the main price.
+function packNote(item) {
+  const size = String(item.name).split(',').slice(1).join(',').trim()
+  const kind = item.shelf_price < item.price ? 'Smaller pack' : 'Bigger pack'
+  return [kind, `Shelf ${money(item.shelf_price)}`, size ? `Shown per ${size} for a fair compare` : 'Shown per standard pack for a fair compare'].join(' · ')
 }
 
 const Rule = () => <div className="my-4 border-t-[1.5px] border-dashed border-line" />
@@ -96,6 +103,9 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
                         </Sticker>
                       )}
                     </div>
+                    {item.pack_note && item.shelf_price != null && (
+                      <p className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-muted">{packNote(item)}</p>
+                    )}
                   </li>
                 )
               })}
@@ -159,12 +169,12 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
       {/* Fixed bottom bar so the actions are never cut off */}
       <BottomBar>
         <a
-          href={appleMapsUrl(store)}
+          href={directionsUrl(store)}
           target="_blank"
           rel="noreferrer"
-          className="flex min-h-[52px] w-full items-center justify-center rounded-[14px] bg-ink text-[17px] font-semibold text-eggshell active:scale-[0.98]"
+          className="flex min-h-14 w-full items-center justify-center rounded-[14px] bg-soil text-[17px] font-semibold text-eggshell active:scale-[0.98]"
         >
-          Walk there
+          Get directions
         </a>
         <button
           type="button"

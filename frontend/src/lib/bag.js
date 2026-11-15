@@ -5,7 +5,8 @@ const DIET_WORDS = [
   'nut-free', 'nut free', 'halal', 'kosher', 'organic', 'low sodium', 'high protein', 'keto',
 ]
 
-const SENTENCE_START = /^(i'?m|i am|im|i|we|no|only|must|prefer|please|keep|nothing|without)\b/i
+const SENTENCE_START = /^(i'?m|i am|im|no|only|must|prefer|please|keep|nothing|without|i don'?t|i prefer|we don'?t)\b/i
+const LIST_START = /^(i need|i want|i'?d like|we need|get|buy|grab|pick up|add)\b/i
 const BUDGET = /(?:under|below|less than|max(?:imum)?|budget(?: of| is)?|at most|within)\s*\$?\s*(\d+(?:\.\d{1,2})?)|\$\s*(\d+(?:\.\d{1,2})?)/i
 
 /**
@@ -26,12 +27,13 @@ export function parseEntry(raw) {
 
   const lower = text.toLowerCase()
   const words = lower.split(/\s+/)
-  const looksLikeSentence = SENTENCE_START.test(lower) || words.length >= 4
+  // Lists ("milk, eggs and bread", "I need ...") are items, however long.
+  const isList = LIST_START.test(lower) || /,|;|\band\b/.test(lower)
   const diet = DIET_WORDS.find((w) => lower.includes(w))
-  if (diet && (looksLikeSentence || words.length <= 2)) {
+  if (diet && !isList && (SENTENCE_START.test(lower) || words.length <= 2)) {
     return { kind: 'preference', preference: diet.replace(' ', '-') }
   }
-  if (looksLikeSentence) {
+  if (!isList && SENTENCE_START.test(lower)) {
     const preference = lower.replace(/^(i'?m|i am|im)\s+/, '').replace(/[.!?]+$/, '')
     return { kind: 'preference', preference }
   }
@@ -40,31 +42,55 @@ export function parseEntry(raw) {
   return { kind: 'items', items }
 }
 
-// Bag rows: { label, rank, quantity, notFound? }. `label` is what the row shows; `rank` is the
-// text sent to /api/rank-stores (null = not sent). Typed items use their own text for both.
-export const typedItem = (text) => ({ label: text, rank: text, quantity: 1 })
+// Bag rows: { label, rank, quantity, status, said?, suggestions? }
+//   status 'ok'      normal row; `rank` is the text sent to /api/rank-stores
+//   status 'confirm' matched but needs_confirm: "Did you mean <label>?" (dashed)
+//   status 'missing' not matched: "Couldn't find <label>." with up to 3 suggestions (dashed)
+// Only 'ok' rows are sent to rank-stores. Typed items are 'ok' with their own text.
+export const typedItem = (text) => ({ label: text, rank: text, quantity: 1, status: 'ok' })
+export const productItem = (name, quantity = 1) => ({ label: name, rank: name, quantity, status: 'ok' })
 
 const norm = (t) => String(t).trim().toLowerCase()
 
-// Voice rows from /api/parse-list. rank_items[i] pairs with items[i] (string or {text, quantity}).
-// Anything in `unmatched` (or matched: false) gets NOT FOUND and is never sent to rank-stores.
+// Rows from /api/parse-list. rank_items[i] pairs with items[i] (string or {text, quantity}).
+// Never shows match_type or confidence.
 export function voiceItems({ items = [], rank_items = [], unmatched = [] }) {
   const missing = new Set(unmatched.map(norm))
   return items.map((it, i) => {
     const ri = rank_items[i]
     const quantity = Math.max(1, (typeof ri === 'object' && ri?.quantity) || it.quantity || 1)
-    if (!it.matched || missing.has(norm(it.text))) return { label: it.text, rank: null, quantity, notFound: true }
-    return { label: it.name ?? it.text, rank: typeof ri === 'string' ? ri : ri?.text ?? it.text, quantity }
+    if (!it.matched || missing.has(norm(it.text))) {
+      return { label: it.text, rank: null, quantity, status: 'missing', suggestions: (it.suggestions ?? []).slice(0, 3) }
+    }
+    const rank = typeof ri === 'string' ? ri : ri?.text ?? it.name ?? it.text
+    const name = it.name ?? it.text
+    return it.needs_confirm
+      ? { label: name, rank, quantity, status: 'confirm', said: it.text }
+      : { label: name, rank, quantity, status: 'ok' }
   })
 }
 
-// What rank-stores receives for one row: a plain string, or {text, quantity} when more than one.
-export const toRankItem = (item) => (item.quantity > 1 ? { text: item.rank, quantity: item.quantity } : item.rank)
+export const isDashed = (item) => item.status === 'confirm' || item.status === 'missing'
+export const isRankable = (item) => (item.status ?? 'ok') === 'ok' && Boolean(item.rank)
 
-export const itemKey = (item) => (item.rank ?? item.label).toLowerCase()
+// What rank-stores receives for one confirmed row (same shape as rank_items).
+export const toRankItem = (item) => ({ text: item.rank, quantity: item.quantity ?? 1 })
+
+// Dashed rows are keyed by what was said, so two guesses at the same product both stay visible.
+export const itemKey = (item) =>
+  item.status === 'confirm' ? `confirm:${norm(item.said ?? item.label)}`
+    : item.status === 'missing' ? `missing:${norm(item.label)}`
+      : norm(item.rank ?? item.label)
+
+// "Old-fashioned oats, 42 oz" -> "Oats": drop the size, keep it short for a chip.
+export function shortName(name) {
+  const base = String(name).split(',')[0].trim()
+  const s = base.length > 14 ? base.split(/\s+/).pop() : base
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
 
 // Older saved bags stored plain strings or rows without quantity.
-export const toItem = (x) => (typeof x === 'string' ? typedItem(x) : { quantity: 1, ...x })
+export const toItem = (x) => (typeof x === 'string' ? typedItem(x) : { quantity: 1, status: 'ok', ...x })
 
 // Past bags (localStorage). Wrapped in try/catch so private windows still work.
 const KEY = 'sift.pastBags'
@@ -105,7 +131,7 @@ export function autoName(items) {
  * winner = { store_id, total, saved } where saved = dollars below the nearby average.
  */
 export function savePastBag(bag, winner) {
-  const items = bag.items.filter((i) => i.rank)
+  const items = bag.items.filter(isRankable)
   if (!items.length) return loadPastBags()
   const sig = (b) => b.items.map((i) => itemKey(toItem(i))).sort().join('|')
   const old = loadPastBags()

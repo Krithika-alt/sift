@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { parseList } from '../api/client.js'
-import { BuddyLine, DemoBadge, Pulse, SectionLabel, TornEdge } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, PrimaryButton, Pulse, SectionLabel, TornEdge } from '../components/brand.jsx'
 import PastBagCard from '../components/PastBagCard.jsx'
 import Sticker from '../components/Sticker.jsx'
 import Wordmark from '../components/Wordmark.jsx'
-import { itemKey, parseEntry, typedItem, voiceItems } from '../lib/bag.js'
+import { isDashed, isRankable, itemKey, parseEntry, productItem, shortName, typedItem, voiceItems } from '../lib/bag.js'
 import { useBuddy } from '../lib/profile.js'
 import { useSpeech } from '../lib/useSpeech.js'
 
@@ -25,7 +25,18 @@ function MicIcon({ listening }) {
   )
 }
 
-const orList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}` : xs[0])
+// 44px round outline button (confirm / reject)
+function RoundButton({ label, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className="flex h-11 w-11 shrink-0 items-center justify-center text-ink">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-ink">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {children}
+        </svg>
+      </span>
+    </button>
+  )
+}
 
 // 44px hit area, small muted glyph.
 function IconButton({ label, onClick, disabled, children }) {
@@ -78,15 +89,13 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
   }
 
   // Voice: final transcript -> POST /api/parse-list -> editable rows in the bag (the confirm step).
-  async function onTranscript(transcript) {
+  async function onTranscript(transcript, alternatives = []) {
     setParsing(true)
     try {
-      const { data } = await parseList(transcript)
+      const { data } = await parseList(transcript, alternatives)
       const rows = voiceItems(data)
       addItems(rows)
-      const missing = data.unmatched?.length ? data.unmatched : rows.filter((r) => r.notFound).map((r) => r.label)
-      if (missing.length) setTomLine(`I couldn't find ${orList(missing)}. Try another word?`)
-      else if (rows.length) setTomLine('What else do you need?')
+      if (rows.length) setTomLine('What else do you need?')
       else setTomLine("I didn't catch a list. Try again?")
     } catch {
       setTomLine("I didn't catch that. Try typing it?")
@@ -108,8 +117,8 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
     const parsed = parseEntry(text)
     if (!parsed) return
     if (parsed.kind === 'items') {
-      addItems(parsed.items.map(typedItem))
-      setTomLine('What else do you need?')
+      // Typed lists get the same confirm step as speech.
+      onTranscript(text.trim())
     } else if (parsed.kind === 'budget') {
       setBag((b) => ({ ...b, budget: parsed.budget, budgetSet: true }))
       setTomLine("Noted. I'll keep that in mind.")
@@ -125,7 +134,18 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
   const removeItem = (item) => setBag((b) => ({ ...b, items: b.items.filter((i) => i !== item) }))
   const setQuantity = (item, quantity) =>
     setBag((b) => ({ ...b, items: b.items.map((i) => (i === item ? { ...i, quantity } : i)) }))
-  // Tap a NOT FOUND row to retype it: its text goes back into the input.
+  // Replace a dashed row with a confirmed one; merge with an existing row for the same product.
+  const settleRow = (item, next) =>
+    setBag((b) => {
+      const twin = b.items.find((i) => i !== item && isRankable(i) && itemKey(i) === itemKey(next))
+      const items = twin
+        ? b.items.filter((i) => i !== item).map((i) => (i === twin ? { ...i, quantity: Math.min(99, i.quantity + next.quantity) } : i))
+        : b.items.map((i) => (i === item ? next : i))
+      return { ...b, items }
+    })
+  const confirmRow = (item) => settleRow(item, { label: item.label, rank: item.rank, quantity: item.quantity, status: 'ok' })
+  const pickSuggestion = (item, name) => settleRow(item, productItem(name, item.quantity))
+  // "Edit" puts what was said back in the input.
   const retype = (item) => {
     removeItem(item)
     setText(item.label)
@@ -139,7 +159,8 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
         : { ...b, preferences: b.preferences.filter((x) => x !== need.text) },
     )
 
-  const rankable = bag.items.some((i) => i.rank)
+  const rankable = bag.items.some(isRankable)
+  const pending = bag.items.filter(isDashed).length
 
   // Need stickers: budget first, then preferences. At most two stickers on the bag.
   const needs = [
@@ -162,7 +183,15 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
 
         <div className="mt-6">
           <BuddyLine size={64} text={28}>
-            {speech.listening ? <Pulse>Listening</Pulse> : parsing ? <Pulse>Thinking</Pulse> : tomLine ?? greeting}
+            {speech.listening ? (
+              <Pulse>Listening</Pulse>
+            ) : parsing ? (
+              <Pulse>Thinking</Pulse>
+            ) : pending ? (
+              'Check the dashed ones for me.'
+            ) : (
+              tomLine ?? greeting
+            )}
           </BuddyLine>
         </div>
 
@@ -205,33 +234,69 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 8 }}
-                    className="flex min-h-11 items-center border-b-[1.5px] border-dashed border-line"
+                    className={
+                      isDashed(item)
+                        ? 'my-1.5 rounded-[4px] border-[1.5px] border-dashed border-muted bg-receipt py-1 pl-3'
+                        : 'flex min-h-11 items-center border-b-[1.5px] border-dashed border-line'
+                    }
                   >
-                    {item.notFound ? (
-                      <button
-                        type="button"
-                        onClick={() => retype(item)}
-                        aria-label={`${item.label}, not found. Tap to retype.`}
-                        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
-                      >
-                        <span className="text-[17px] text-ink underline decoration-dashed underline-offset-4 first-letter:uppercase">
-                          {item.label}
-                        </span>
-                        <Sticker dashed size="sm" tilt={-3}>
-                          Not found
-                        </Sticker>
-                      </button>
+                    {item.status === 'confirm' ? (
+                      <div className="flex items-center">
+                        <p className="min-w-0 flex-1 py-1.5 text-[16px] leading-snug text-ink">
+                          Did you mean <span className="font-semibold">{item.label}</span>
+                          {item.quantity > 1 && ` ×${item.quantity}`}?
+                        </p>
+                        <RoundButton label={`Yes, ${item.label}`} onClick={() => confirmRow(item)}>
+                          <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </RoundButton>
+                        <RoundButton label={`No, not ${item.label}`} onClick={() => removeItem(item)}>
+                          <path d="M7 7l10 10M17 7L7 17" />
+                        </RoundButton>
+                      </div>
+                    ) : item.status === 'missing' ? (
+                      <div>
+                        <div className="flex items-center">
+                          <p className="min-w-0 flex-1 py-1.5 text-[16px] leading-snug text-ink">
+                            Couldn't find <span className="font-semibold">{item.label}</span>.
+                          </p>
+                          {!item.suggestions?.length && (
+                            <button type="button" onClick={() => retype(item)} className="min-h-11 px-2 text-[15px] font-semibold text-ink underline decoration-dashed underline-offset-4">
+                              Edit
+                            </button>
+                          )}
+                          <IconButton label={`Remove ${item.label}`} onClick={() => removeItem(item)}>
+                            <span className="text-muted">✕</span>
+                          </IconButton>
+                        </div>
+                        {item.suggestions?.length > 0 && (
+                          <div className="-mt-1 flex flex-wrap gap-x-2 pb-1">
+                            {item.suggestions.map((sg) => (
+                              <button
+                                key={sg.product_id ?? sg.name}
+                                type="button"
+                                onClick={() => pickSuggestion(item, sg.name)}
+                                aria-label={`Use ${sg.name}`}
+                                className="flex min-h-11 items-center"
+                              >
+                                <span className="flex h-9 items-center rounded-[14px] border-[1.5px] border-ink bg-eggshell px-3 text-[14px] font-semibold text-ink">
+                                  {shortName(sg.name)}?
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <span className="min-w-0 flex-1 py-2 text-[17px] leading-tight text-ink first-letter:uppercase">
                           {item.label}
                         </span>
                         <Stepper item={item} onChange={(q) => setQuantity(item, q)} />
+                        <IconButton label={`Remove ${item.label}`} onClick={() => removeItem(item)}>
+                          <span className="text-muted">✕</span>
+                        </IconButton>
                       </>
                     )}
-                    <IconButton label={`Remove ${item.label}`} onClick={() => removeItem(item)}>
-                      <span className="text-muted">✕</span>
-                    </IconButton>
                   </motion.li>
                 ))}
               </AnimatePresence>
@@ -307,19 +372,16 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
         )}
       </div>
 
-      {/* Soil band: the only inverted button in the app */}
-      <div className="sticky bottom-0 z-10 mt-auto">
-        <TornEdge color="var(--soil)" seed={41} height={12} />
-        <div className="soil flex h-[108px] items-center px-5">
-          <button
-            type="button"
-            disabled={!rankable || speech.listening || parsing}
-            onClick={onSift}
-            className="min-h-[52px] w-full rounded-[14px] bg-eggshell px-5 text-[17px] font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
-            Sift my list
-          </button>
-        </div>
+      {/* Primary action at the bottom, 16px above the tab bar */}
+      <div className="sticky bottom-0 z-10 mt-auto bg-eggshell px-5 pb-4 pt-3">
+        <PrimaryButton disabled={!rankable || pending > 0 || speech.listening || parsing} onClick={onSift}>
+          Sift my list
+        </PrimaryButton>
+        {pending > 0 && (
+          <p className="mt-1.5 text-center text-[13px] text-muted">
+            Confirm {pending} {pending === 1 ? 'item' : 'items'} first
+          </p>
+        )}
       </div>
     </div>
   )

@@ -1,64 +1,42 @@
-import { MyBuddy } from './brand.jsx'
-
-const Icon = ({ children }) => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {children}
-  </svg>
-)
+import Buddy from './Buddies.jsx'
+import { TabIcon } from './TabIcons.jsx'
+import { TornEdge } from './brand.jsx'
+import { useBuddy } from '../lib/profile.js'
 
 const TABS = [
-  {
-    id: 'bag',
-    label: 'Bag',
-    icon: (
-      <Icon>
-        <path d="M5 8h14l-1 12H6L5 8z" />
-        <path d="M9 8V6a3 3 0 0 1 6 0v2" />
-      </Icon>
-    ),
-  },
-  {
-    id: 'map',
-    label: 'Map',
-    icon: (
-      <Icon>
-        <path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z" />
-        <circle cx="12" cy="10" r="2.2" />
-      </Icon>
-    ),
-  },
-  {
-    id: 'saved',
-    label: 'Saved',
-    icon: (
-      <Icon>
-        <path d="M7 4h10v16l-5-4-5 4V4z" />
-      </Icon>
-    ),
-  },
-  { id: 'me', label: 'Me', icon: <MyBuddy size={24} /> },
+  { id: 'bag', label: 'Bag' },
+  { id: 'map', label: 'Map' },
+  { id: 'saved', label: 'Saved' },
+  { id: 'me', label: 'Me' },
 ]
 
-/** Quiet bottom tabs: 56 tall plus the safe area, eggshell, 1.5px rule, no shadow. */
+/** Quiet bottom tabs: eggshell with a torn paper lip, 64 tall plus the safe area. */
 export default function TabBar({ active, onChange }) {
+  const buddy = useBuddy()
   return (
-    <nav aria-label="Tabs" className="relative z-20 shrink-0 border-t-[1.5px] border-line bg-eggshell pb-[34px]">
-      <ul className="flex h-14">
+    <nav aria-label="Tabs" className="relative z-20 shrink-0 bg-eggshell pb-[34px]">
+      {/* torn top edge: a thin #DCCDB2 lip under the eggshell paper */}
+      <span aria-hidden="true" className="absolute inset-x-0 -top-2 block h-2">
+        <TornEdge color="var(--line)" seed={53} height={8} className="absolute inset-x-0 top-0" />
+        <TornEdge color="var(--eggshell)" seed={53} height={8} className="absolute inset-x-0 top-[1.5px]" />
+      </span>
+      <ul className="flex h-16">
         {TABS.map((t) => {
           const on = t.id === active
           return (
-            <li key={t.id} className="flex-1">
+            <li key={t.id} className="flex flex-1 justify-center">
               <button
                 type="button"
                 onClick={() => onChange(t.id)}
                 aria-current={on ? 'page' : undefined}
-                className={`flex h-14 w-full flex-col items-center justify-center gap-0.5 ${on ? 'text-ink' : 'text-muted'}`}
+                className="flex h-16 min-w-11 flex-col items-center justify-center gap-1 px-2"
               >
-                <span className="flex h-6 items-center" style={t.id === 'me' && !on ? { opacity: 0.7 } : undefined}>
-                  {t.icon}
-                </span>
-                <span className="text-[12px] font-semibold leading-none">{t.label}</span>
-                <span aria-hidden="true" className={`mt-0.5 h-2 w-2 rounded-full ${on ? 'bg-pea' : 'bg-transparent'}`} />
+                {t.id === 'me' ? (
+                  <Buddy id={buddy.id} size={30} style={on ? undefined : { filter: 'grayscale(1) opacity(0.55)' }} />
+                ) : (
+                  <TabIcon name={t.id} selected={on} />
+                )}
+                <span className={`text-[12px] font-semibold leading-none ${on ? 'text-ink' : 'text-[#9C8B7D]'}`}>{t.label}</span>
               </button>
             </li>
           )

@@ -60,13 +60,13 @@ export const reportPrice = (body) =>
   )
 
 /**
- * POST /api/parse-list  body: { text }
+ * POST /api/parse-list  body: { text, alternatives? }
  * -> { items: [{ text, quantity, matched, name, ... }], rank_items: [str], ... }
  */
-export const parseList = (text) =>
+export const parseList = (text, alternatives = []) =>
   withFallback(
-    () => request('/api/parse-list', { method: 'POST', body: { text } }),
-    () => mock.parseList({ text }),
+    () => request('/api/parse-list', { method: 'POST', body: alternatives.length ? { text, alternatives } : { text } }),
+    () => mock.parseList({ text, alternatives }),
   )
 
 // Genie takes 10-25 s, so ask-agent has no 4 s fallback: wait up to 40 s, then fail calmly.

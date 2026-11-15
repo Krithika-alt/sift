@@ -1,31 +1,20 @@
+import { useEffect, useState } from 'react'
 import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { MyBuddy, PrimaryButton, Pulse } from '../components/brand.jsx'
 import { useBuddy } from '../lib/profile.js'
 
-// Short chip labels; the full question goes to /api/ask-agent.
-export const ASK_CHIPS = [
-  { label: 'Why this store?', question: 'Why this store?' },
-  { label: 'Cheaper swap?', question: 'Cheaper swap?' },
-  { label: 'Protein per $?', question: 'Protein per dollar?' },
-]
-
-// About two lines of Darumadrop 24 in the sheet.
-const HEADLINE_MAX = 64
-
-/**
- * The headline never gets an ellipsis. A long one is shown up to its first natural break
- * (":" ";" "," or " - ") within two lines; the full text is always in the answer below.
- */
-function splitHeadline(headline = '') {
-  const h = headline.trim()
-  if (h.length <= HEADLINE_MAX) return { head: h, cut: false }
-  const breaks = [...h.slice(0, HEADLINE_MAX).matchAll(/[:;,]|\s-\s/g)].map((m) => m.index)
-  const at = breaks.length ? breaks[breaks.length - 1] : h.slice(0, HEADLINE_MAX).lastIndexOf(' ')
-  return { head: h.slice(0, at).trim() + '.', cut: true }
+/** Short chip labels; the full question with real names goes to /api/ask-agent. */
+export const askChips = (best) => {
+  const store = best?.name ?? 'this store'
+  return [
+    { label: 'Why this store?', question: `Why did ${store} win?` },
+    { label: 'Cheaper swap?', question: `What can I swap to save money at ${store}?` },
+    { label: 'Protein per $?', question: 'Which store has the cheapest protein per dollar?' },
+  ]
 }
 
-// If the answer starts with the same sentence as the headline, drop that sentence.
+// If the answer starts with the same sentence as the headline, don't say it twice.
 function answerBody(answer = '', headline = '') {
   const first = answer.split(/(?<=\.)\s+/)[0] ?? ''
   const norm = (t) => t.trim().replace(/\.$/, '')
@@ -33,20 +22,22 @@ function answerBody(answer = '', headline = '') {
 }
 
 /**
- * Ask [buddy]: POST /api/ask-agent. Closing while it's thinking is fine; the answer is here
- * when the sheet opens again. ask = { question, status: 'loading' | 'done' | 'error', data }
+ * Ask [buddy]: POST /api/ask-agent with the full last rank-stores response. Closing while it's
+ * thinking is fine; the answer is here when the sheet opens again.
+ * ask = { question, status: 'loading' | 'done' | 'error', data }
  */
 export default function AskTomSheet({ open, ask, onClose, onRetry }) {
   const buddy = useBuddy()
+  const [showFacts, setShowFacts] = useState(false)
+  useEffect(() => setShowFacts(false), [ask?.question])
   const data = ask?.data
-  const { head, cut } = splitHeadline(data?.headline)
-  const body = data ? (cut ? data.answer : answerBody(data.answer, data.headline)) : ''
+  const body = data ? answerBody(data.answer, data.headline) : ''
 
   return (
     <Sheet open={open} onClose={onClose} title={`Ask ${buddy.name}`}>
-      <div className="flex items-center justify-between">
-        <h2 className="text-[14px] font-semibold text-ink">{ask?.question}</h2>
-        <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 items-center justify-center text-[22px] text-ink">
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="pt-3 text-[14px] font-semibold text-ink">{ask?.question}</h2>
+        <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-[22px] text-ink">
           ✕
         </button>
       </div>
@@ -78,30 +69,43 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
           <div>
             <div className="flex items-start gap-3">
               <MyBuddy size={56} style={{ marginTop: 2 }} />
-              <p className="font-display text-[24px] leading-[1.2] text-ink">{head}</p>
+              {/* wraps, never truncated */}
+              <p className="min-w-0 font-display text-[24px] leading-[1.2] text-ink">{data.headline}</p>
             </div>
             {body && <p className="mt-4 text-[17px] leading-relaxed text-ink">{body}</p>}
 
-            {data.facts_used?.length > 0 && (
-              <ul className="mt-5 rounded-[4px] bg-receipt px-4 py-2 font-mono">
-                {data.facts_used.map((f, i) => (
-                  <li key={i} className="border-b-[1.5px] border-dashed border-line py-1.5 text-[12px] uppercase leading-snug text-ink last:border-b-0">
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            )}
-
             <div className="mt-4">
-              {data.verified ? (
+              {data.source === 'genie' && data.verified ? (
                 <Sticker color="olive" size="sm" tilt={-4}>
                   Checked against prices
                 </Sticker>
-              ) : (
-                <p className="text-[13px] text-ink">Based on our price tables</p>
-              )}
+              ) : data.source === 'grounded' || data.source === 'demo' ? (
+                <p className="text-[13px] text-ink">Answered from our price tables</p>
+              ) : null}
               {data.note && <p className="mt-2 text-[12px] text-ink">{data.note}</p>}
             </div>
+
+            {data.facts_used?.length > 0 && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  aria-expanded={showFacts}
+                  onClick={() => setShowFacts((v) => !v)}
+                  className="-ml-1 min-h-11 px-1 text-[14px] font-semibold text-ink underline decoration-dashed underline-offset-4"
+                >
+                  {showFacts ? 'Hide the numbers' : 'Show the numbers'}
+                </button>
+                {showFacts && (
+                  <ul className="mt-1 rounded-[4px] bg-receipt px-4 py-2 font-mono">
+                    {data.facts_used.map((f, i) => (
+                      <li key={i} className="border-b-[1.5px] border-dashed border-line py-1.5 text-[12px] uppercase leading-snug text-ink last:border-b-0">
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -92,11 +92,25 @@ export function SectionLabel({ children, className = '' }) {
   return <h3 className={`text-[14px] font-semibold text-muted ${className}`}>{children}</h3>
 }
 
+/** Every primary button: soil with eggshell text, Karla 600 17, radius 14, 56 tall. */
 export function PrimaryButton({ children, className = '', ...rest }) {
   return (
     <button
       type="button"
-      className={`min-h-[52px] w-full rounded-[14px] bg-ink px-5 text-[17px] font-semibold text-eggshell transition-transform active:scale-[0.98] disabled:opacity-50 ${className}`}
+      className={`min-h-14 w-full rounded-[14px] bg-soil px-5 text-[17px] font-semibold text-eggshell transition-transform active:scale-[0.98] disabled:opacity-40 ${className}`}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Outlined secondary button. */
+export function SecondaryButton({ children, className = '', ...rest }) {
+  return (
+    <button
+      type="button"
+      className={`min-h-14 w-full rounded-[14px] border-[1.5px] border-ink bg-receipt px-5 text-[17px] font-semibold text-ink ${className}`}
       {...rest}
     >
       {children}

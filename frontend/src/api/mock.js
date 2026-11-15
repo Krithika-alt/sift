@@ -326,7 +326,7 @@ const NUMBER_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, 
 const UNITS = /^(?:gallons?|gals?|pounds?|lbs?|ounces?|oz|dozens?|loaf|loaves|bags?|box(?:es)?|cartons?|jars?|bottles?|cans?|packs?|bunch(?:es)?)\s+(?:of\s+)?/
 const LEADING_FILLER = /^(?:(?:hey|ok|okay|um|uh|so)[,.]?\s+)*(?:i need|i want|we need|get me|get|grab|buy|pick up|add)\s+/
 
-export function parseList({ text }) {
+function splitPieces(text) {
   const cleaned = (text || '').toLowerCase().replace(/’/g, "'").trim().replace(LEADING_FILLER, '')
   const seen = new Set()
   const pieces = []
@@ -344,14 +344,41 @@ export function parseList({ text }) {
     seen.add(norm(piece))
     pieces.push({ text: piece, quantity, raw })
   }
-  const items = pieces.map((p) => {
-    const pid = matchItems([p.text])[0]?.[1] ?? null
-    return { ...p, matched: pid != null, product_id: pid, name: pid ? byId[pid].name : null }
+  return pieces
+}
+
+// exact term -> confident; fuzzy -> needs_confirm; none -> up to 3 suggestions
+function voiceMatch(text) {
+  const exact = PRODUCTS.find((p) => [...p.search_terms.split(','), p.name].some((t) => norm(t) === norm(text)))
+  if (exact) return { matched: true, product_id: exact.product_id, name: exact.name, needs_confirm: false, suggestions: [] }
+  const pid = matchItems([text])[0]?.[1] ?? null
+  if (pid) return { matched: true, product_id: pid, name: byId[pid].name, needs_confirm: true, suggestions: [] }
+  const scored = PRODUCTS.map((p) => ({
+    product_id: p.product_id,
+    name: p.name,
+    score: Math.max(...[...p.search_terms.split(','), p.name].map((t) => similarity(norm(text), norm(t)))),
+  }))
+    .filter((x) => x.score >= 45)
+    .sort((x, y) => y.score - x.score)
+    .slice(0, 3)
+    .map((x) => ({ ...x, score: Math.round(x.score) }))
+  return { matched: false, product_id: null, name: null, needs_confirm: false, suggestions: scored }
+}
+
+export function parseList({ text, alternatives = [] }) {
+  const altPieces = alternatives.flatMap(splitPieces)
+  const items = splitPieces(text).map((p) => {
+    let m = voiceMatch(p.text)
+    if (!m.matched) {
+      const alt = altPieces.map((a) => voiceMatch(a.text)).find((a) => a.matched)
+      if (alt) m = { ...alt, needs_confirm: true, suggestions: [] }
+    }
+    return { ...p, ...m }
   })
   return settle({
     items,
     unmatched: items.filter((i) => !i.matched).map((i) => i.text),
-    rank_items: items.map((i) => ({ text: i.matched ? i.name : i.text, quantity: i.quantity })),
+    rank_items: items.map((i) => ({ text: i.name ?? i.text, quantity: i.quantity })),
   })
 }
 

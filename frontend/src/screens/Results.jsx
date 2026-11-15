@@ -5,7 +5,7 @@ import Sticker from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
 import { itemsFound, matchPct, money, priceCounts, reasonLine, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
-import { ASK_CHIPS } from './AskTomSheet.jsx'
+import { askChips } from './AskTomSheet.jsx'
 
 const fmtMi = (mi) => `${Number(mi).toFixed(1)} mi`
 export const modeLabel = (m, buddyName) => (m.id === 'balanced' ? `${buddyName}'s pick` : m.label)
@@ -191,7 +191,7 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
           <section aria-label={`Ask ${buddy.name}`} className="mt-6">
             <SectionLabel>Ask {buddy.name}</SectionLabel>
             <div className="no-scrollbar -mx-5 mt-1 flex gap-2 overflow-x-auto px-5">
-              {ASK_CHIPS.map((c) => (
+              {askChips(ranked[0]).map((c) => (
                 <button key={c.label} type="button" onClick={() => onAsk(c.question)} className="flex min-h-11 shrink-0 items-center">
                   <span className="flex h-9 items-center rounded-[14px] border-[1.5px] border-ink bg-receipt px-3 text-[14px] font-semibold text-ink">
                     {c.label}

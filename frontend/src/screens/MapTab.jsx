@@ -3,16 +3,22 @@ import { motion, useAnimation } from 'framer-motion'
 import { TornEdge } from '../components/brand.jsx'
 import PaperMap from '../components/PaperMap.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { money, storeColor, walkMinutes } from '../lib/stores.js'
+import { directionsUrl, money, storeColor, walkMinutes } from '../lib/stores.js'
 
 const SHEET_MAX = 520
 const SHEET_MIN = 260
 const DRAG = SHEET_MAX - SHEET_MIN
 
-function headline(stores) {
-  const near = stores.filter((s) => s.distance_miles <= 1).length
-  if (!stores.length) return 'Finding stores near you'
-  return near ? `${near} ${near === 1 ? 'store' : 'stores'} within a mile` : `${stores.length} stores nearby`
+// Counts what the sheet lists.
+const headline = (stores) => (stores.length ? `${stores.length} ${stores.length === 1 ? 'store' : 'stores'} near you` : 'Finding stores near you')
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2.8l9.2 9.2-9.2 9.2L2.8 12z" />
+      <path d="M9 14.5v-2.2a1.5 1.5 0 0 1 1.5-1.5h4M12.8 8.6l2.2 2.2-2.2 2.2" />
+    </svg>
+  )
 }
 
 /**
@@ -46,7 +52,7 @@ export default function MapTab({ ranked, user, bagEmpty, canReceipt, onReceipt, 
   return (
     <div ref={box} className="relative h-full overflow-hidden">
       {/* stores sit in the open area between the title and the sheet */}
-      <PaperMap stores={stores} user={user} sizes={sizes} selectedId={selected} onSelect={setSelected} height={mapH} focusY={(mapH - SHEET_MIN) / 2 + 40} className="absolute inset-0" />
+      <PaperMap stores={stores} user={user} sizes={sizes} selectedId={selected} onSelect={setSelected} height={mapH} focusY={(mapH - SHEET_MIN) / 2 + 40} full className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-x-0 top-12 z-10 flex justify-between px-5">
         <h1 className="pointer-events-auto relative px-3 py-1 font-display text-[24px] text-ink">
           <span aria-hidden="true" className="absolute inset-0 -z-10 bg-eggshell" style={{ filter: 'url(#sift-sticker-edge)' }} />
@@ -87,31 +93,55 @@ export default function MapTab({ ranked, user, bagEmpty, canReceipt, onReceipt, 
             {stores.map((s, i) => {
               const on = s.store_id === selected
               return (
-                <li key={s.store_id} className={`border-b-[1.5px] border-dashed border-ink/20 ${on ? '-mx-2 rounded-[4px] bg-receipt px-2' : ''}`}>
-                  <button type="button" onClick={() => setSelected(s.store_id)} aria-pressed={on} className="flex min-h-14 w-full items-center gap-3 text-left">
-                    <Sticker shape="round" size="md" color={storeColor(s.store_id)} tilt={(i + 1) % 2 ? -6 : 5}>
-                      {i + 1}
-                    </Sticker>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[16px] font-bold leading-tight text-ink">{s.name}</span>
-                      <span className="block text-[13px] font-medium text-ink/80">
-                        {s.distance_miles.toFixed(1)} mi · {walkMinutes(s.distance_miles)} min walk
+                <li key={s.store_id} className={`border-b-[1.5px] border-dashed border-ink/20 ${on ? '-mx-2 rounded-[4px] bg-receipt px-2 pb-3' : ''}`}>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => setSelected(s.store_id)} aria-pressed={on} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 text-left">
+                      <Sticker shape="round" size="md" color={storeColor(s.store_id)} tilt={(i + 1) % 2 ? -6 : 5}>
+                        {i + 1}
+                      </Sticker>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[16px] font-bold leading-tight text-ink">{s.name}</span>
+                        <span className="block text-[13px] font-medium text-ink/80">
+                          {s.distance_miles.toFixed(1)} mi · {walkMinutes(s.distance_miles)} min walk
+                        </span>
                       </span>
-                    </span>
-                    {bagEmpty ? (
-                      <span className="text-[13px] text-ink/80">Add items to compare</span>
-                    ) : (
-                      <span className="font-mono text-[15px] font-bold text-ink">{money(s.total_basket_price)}</span>
-                    )}
-                  </button>
-                  {on && canReceipt && (
-                    <button
-                      type="button"
-                      onClick={() => onReceipt(s.store_id)}
-                      className="mb-2 min-h-11 w-full rounded-[14px] bg-ink text-[17px] font-semibold text-eggshell"
-                    >
-                      See receipt
+                      {bagEmpty ? (
+                        <span className="max-w-[88px] text-right text-[13px] leading-tight text-ink/80">Add items to compare</span>
+                      ) : (
+                        <span className="font-mono text-[15px] font-bold text-ink">{money(s.total_basket_price)}</span>
+                      )}
                     </button>
+                    {/* one-tap directions, no expanding needed */}
+                    <a
+                      href={directionsUrl(s)}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Directions to ${s.name}`}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center text-ink"
+                    >
+                      <ArrowIcon />
+                    </a>
+                  </div>
+                  {on && (
+                    <div className="mt-1 flex gap-2">
+                      <a
+                        href={directionsUrl(s)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-h-14 flex-1 items-center justify-center rounded-[14px] bg-soil px-3 text-[17px] font-semibold text-eggshell"
+                      >
+                        Get directions
+                      </a>
+                      {canReceipt && (
+                        <button
+                          type="button"
+                          onClick={() => onReceipt(s.store_id)}
+                          className="min-h-14 flex-1 rounded-[14px] border-[1.5px] border-ink bg-receipt px-3 text-[17px] font-semibold text-ink"
+                        >
+                          See receipt
+                        </button>
+                      )}
+                    </div>
                   )}
                 </li>
               )

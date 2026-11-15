@@ -15,6 +15,7 @@ export function useSpeech(onFinal) {
   const [live, setLive] = useState('')
   const recRef = useRef(null)
   const finalRef = useRef('')
+  const altRef = useRef([])
   const onFinalRef = useRef(onFinal)
   onFinalRef.current = onFinal
 
@@ -26,13 +27,21 @@ export function useSpeech(onFinal) {
     rec.lang = 'en-US'
     rec.interimResults = true
     rec.continuous = true
+    rec.maxAlternatives = 3
     finalRef.current = ''
+    altRef.current = []
 
     rec.onresult = (e) => {
       const finals = []
       const interim = []
       for (const r of e.results) (r.isFinal ? finals : interim).push(r[0].transcript.trim())
       finalRef.current = finals.join(' ')
+      // The engine's other guesses for the whole transcript (alternative k of each final result).
+      const done = [...e.results].filter((r) => r.isFinal)
+      altRef.current = [1, 2]
+        .filter((k) => done.some((r) => r.length > k))
+        .map((k) => done.map((r) => (r[k] ?? r[0]).transcript.trim()).join(' '))
+        .filter((t) => t && t !== finalRef.current)
       setLive([...finals, ...interim].join(' '))
     }
     rec.onerror = (e) => {
@@ -46,7 +55,7 @@ export function useSpeech(onFinal) {
       setLive('')
       // Only FINAL results are parsed; interim text is just the live preview.
       const transcript = finalRef.current.trim()
-      if (transcript) onFinalRef.current?.(transcript)
+      if (transcript) onFinalRef.current?.(transcript, altRef.current)
     }
 
     recRef.current = rec

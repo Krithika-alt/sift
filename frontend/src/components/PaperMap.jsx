@@ -43,14 +43,27 @@ const STREETS = [
   [[43.0736, -89.3835], [43.0672, -89.3775], [43.0628, -89.371]], // Williamson St
   [[43.0715, -89.4], [43.0705, -89.385]], // Johnson St
 ]
+// Each label has a few nearby spots; the first one clear of pins and edges is used.
 const LABELS = [
-  { text: 'Lake Mendota', lat: 43.0905, lon: -89.401, tilt: -2 },
-  { text: 'Lake Monona', lat: 43.0585, lon: -89.3835, tilt: 2 },
-  { text: 'State St', lat: 43.0762, lon: -89.3935, tilt: -1 },
-  { text: 'University Ave', lat: 43.0768, lon: -89.4325, tilt: 2 },
-  { text: 'Capitol', lat: 43.0712, lon: -89.3795, tilt: 3 },
-  { text: 'UW campus', lat: 43.0768, lon: -89.4095, tilt: -3 },
+  { text: 'Lake Mendota', spots: [[43.0905, -89.401], [43.0925, -89.41]], tilt: -2 },
+  { text: 'Lake Monona', spots: [[43.0585, -89.3835], [43.0615, -89.377]], tilt: 2 },
+  { text: 'State St', spots: [[43.0762, -89.3935], [43.0732, -89.3955], [43.0775, -89.398]], tilt: -1, street: true },
+  { text: 'University Ave', spots: [[43.0768, -89.4325], [43.0758, -89.4225], [43.0778, -89.417]], tilt: 2, street: true },
+  { text: 'Capitol', spots: [[43.0712, -89.3795], [43.0792, -89.3842], [43.0688, -89.3862], [43.0805, -89.378]], tilt: 3 },
+  { text: 'UW campus', spots: [[43.0768, -89.4095], [43.0785, -89.405]], tilt: -3 },
 ]
+const PIN_CLEAR = 28
+
+// Approximate scrap box (Karla 600 at 11-12px plus padding).
+const scrapBox = (text, x, y, size) => {
+  const w = text.length * size * 0.55 + 14
+  const h = size + 8
+  return { x0: x - w / 2, x1: x + w / 2, y0: y - h / 2, y1: y + h / 2 }
+}
+const distToBox = (px, py, b) => Math.hypot(Math.max(b.x0 - px, 0, px - b.x1), Math.max(b.y0 - py, 0, py - b.y1))
+// Never under a pin (within 28px) and never cut off at the edge.
+const labelFits = (b, pins, H) =>
+  b.x0 >= 2 && b.x1 <= W - 2 && b.y0 >= 2 && b.y1 <= H - 2 && pins.every((p) => distToBox(p.x, p.y, b) >= PIN_CLEAR)
 const PIN_PX = { sm: 30, md: 34, lg: 40 }
 
 // Keep pins from stacking on top of each other.
@@ -78,14 +91,16 @@ function spread(points, H, min = 32) {
 }
 
 /** Label on a small eggshell paper scrap: rough edge on the scrap only, text stays crisp. */
-function Scrap({ x, y, H, tilt, children }) {
+function Scrap({ x, y, H, tilt, size = 12, children }) {
   return (
     <span
       className="pointer-events-none absolute whitespace-nowrap px-[7px] py-[3px]"
       style={{ left: `${(x / W) * 100}%`, top: `${(y / H) * 100}%`, transform: `translate(-50%, -50%) rotate(${tilt}deg)` }}
     >
       <span aria-hidden="true" className="absolute inset-0 rounded-[2px] bg-eggshell" style={{ filter: 'url(#sift-sticker-edge)' }} />
-      <span className="relative text-[12px] font-semibold text-ink">{children}</span>
+      <span className="relative font-semibold text-ink" style={{ fontSize: size }}>
+        {children}
+      </span>
     </span>
   )
 }
@@ -94,7 +109,7 @@ function Scrap({ x, y, H, tilt, children }) {
  * stores: ranked_stores (pins numbered by rank). sizes: { [store_id]: 'sm' | 'md' | 'lg' }.
  * height: map height in px at 390 wide. focusY: where the map center sits vertically.
  */
-export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelect, height = 270, focusY, className = '' }) {
+export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelect, height = 270, focusY, full = false, className = '' }) {
   const H = height
   const cy = focusY ?? H / 2
   const project = useMemo(
@@ -112,6 +127,22 @@ export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelec
     return spread(raw, H)
   }, [stores, project, H])
   const [ux, uy] = project(user.lat, user.lon)
+
+  // Labels: street names only at full size (11px); hide any that would sit under a pin or get cut.
+  const labels = LABELS.filter((l) => full || !l.street).flatMap((l) => {
+    const size = l.street ? 11 : 12
+    for (const [lat, lon] of l.spots) {
+      const [x, y] = project(lat, lon)
+      if (labelFits(scrapBox(l.text, x, y, size), pins, H)) return [{ ...l, x, y, size }]
+    }
+    return []
+  })
+  // "You" goes on the side of the dot away from the nearest pin.
+  const nearest = pins.reduce((a, p) => (!a || Math.hypot(p.x - ux, p.y - uy) < Math.hypot(a.x - ux, a.y - uy) ? p : a), null)
+  const youSpots = [
+    [ux + 26, uy - 14], [ux - 26, uy - 14], [ux + 26, uy + 14], [ux - 26, uy + 14], [ux, uy - 24], [ux, uy + 24],
+  ].sort((a, b) => (nearest ? Math.hypot(b[0] - nearest.x, b[1] - nearest.y) - Math.hypot(a[0] - nearest.x, a[1] - nearest.y) : 0))
+  const you = youSpots.find(([x, y]) => labelFits(scrapBox('You', x, y, 12), pins, H)) ?? youSpots[0]
 
   return (
     <div className={`relative w-full overflow-hidden ${className}`} style={{ aspectRatio: `${W} / ${H}` }} role="img" aria-label={`Map of ${stores.length} stores near you, numbered by rank`}>
@@ -140,15 +171,12 @@ export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelec
         <circle cx={ux} cy={uy} r="5.5" fill="var(--ink)" />
       </svg>
 
-      {LABELS.map((l) => {
-        const [x, y] = project(l.lat, l.lon)
-        return y > 8 && y < H - 8 ? (
-          <Scrap key={l.text} x={x} y={y} H={H} tilt={l.tilt}>
-            {l.text}
-          </Scrap>
-        ) : null
-      })}
-      <Scrap x={ux + 24} y={uy - 16} H={H} tilt={-3}>
+      {labels.map((l) => (
+        <Scrap key={l.text} x={l.x} y={l.y} H={H} tilt={l.tilt} size={l.size}>
+          {l.text}
+        </Scrap>
+      ))}
+      <Scrap x={you[0]} y={you[1]} H={H} tilt={-3}>
         You
       </Scrap>
 

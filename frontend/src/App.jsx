@@ -5,7 +5,7 @@ import { StickerDefs } from './components/Sticker.jsx'
 import TabBar from './components/TabBar.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { itemKey, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
+import { isRankable, itemKey, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
 import { BuddyContext, buddyOf, loadProfile, saveProfile } from './lib/profile.js'
 import { savingsVsNearby } from './lib/stores.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
@@ -25,14 +25,13 @@ const SLIDE_DELAY_MS = 450
 const SPLASH_MS = 1000
 const TAB_SCREENS = ['map', 'saved', 'me']
 
-const bagSig = (items) => items.filter((i) => i.rank).map((i) => `${itemKey(i)}x${i.quantity ?? 1}`).sort().join('|')
+const bagSig = (items) => items.filter(isRankable).map((i) => `${itemKey(i)}x${i.quantity ?? 1}`).sort().join('|')
 
 function rankBody(items, mode, budget, preferences, home) {
   const body = {
     user_location: { lat: home.lat, lon: home.lon },
-    // Only rows with rank text: typed items and matched voice items (rank_items). NOT FOUND rows stay out.
-    // Plain string for one, {text, quantity} for more than one (field names match the backend).
-    items: items.filter((i) => i.rank).map(toRankItem),
+    // Confirmed rows only, as {text: <product name>, quantity} (the rank_items shape). Dashed rows stay out.
+    items: items.filter(isRankable).map(toRankItem),
     weights: MODES.find((m) => m.id === mode).weights,
     budget,
   }
@@ -195,7 +194,7 @@ export default function App() {
   }
 
   // Map tab: use the last ranking; if none yet, rank the current bag (or the demo basket) once.
-  const bagEmpty = !bag.items.some((i) => i.rank)
+  const bagEmpty = !bag.items.some(isRankable)
   useEffect(() => {
     if (screen !== 'map' || ranked.length || mapRanked) return
     const items = bagEmpty ? DEMO_BASKET : bag.items
