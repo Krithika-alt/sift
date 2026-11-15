@@ -45,6 +45,24 @@ function SpeechBubble({ children }) {
   )
 }
 
+/** Your question: a kraft bubble on the right (the bag's color is yours), tail at its top-right. */
+function QuestionBubble({ children }) {
+  return (
+    <div className="flex justify-end pl-12">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        style={{ originX: 1, originY: 0 }}
+        className="relative rounded-[16px] rounded-tr-[6px] bg-kraft px-4 py-2.5"
+      >
+        <span aria-hidden="true" className="absolute -right-[5px] top-[14px] h-2.5 w-2.5 rotate-45 bg-kraft" />
+        <p className="relative text-[15px] font-semibold leading-[22px] text-ink">{children}</p>
+      </motion.div>
+    </div>
+  )
+}
+
 // If the answer starts with the same sentence as the headline, don't say it twice.
 function answerBody(answer = '', headline = '') {
   const first = answer.split(/(?<=\.)\s+/)[0] ?? ''
@@ -66,17 +84,23 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
 
   return (
     <Sheet open={open} onClose={onClose} title={`Ask ${buddy.name}`}>
-      {/* the question: Karla 600 15; the 44px close button centers on its first line */}
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="pt-[11px] text-[15px] font-semibold leading-[22px] text-ink">{ask?.question}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-[14px] font-semibold text-muted">Ask {buddy.name}</h2>
         <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-[22px] text-ink">
           ✕
         </button>
       </div>
 
-      <div aria-live="polite" className="mt-2 pb-2">
+      {/* a short conversation: your question on the right, the buddy's reply on the left */}
+      {ask?.question && (
+        <div className="mt-1">
+          <QuestionBubble key={ask.question}>{ask.question}</QuestionBubble>
+        </div>
+      )}
+
+      <div aria-live="polite" className="mt-3 pb-2">
         {ask?.status === 'loading' && (
-          <div className="py-4">
+          <div className="pb-4">
             <SpeechBubble>
               <p className="font-display text-[24px] leading-[1.2] text-ink">
                 <Pulse>Thinking</Pulse>
@@ -86,7 +110,7 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
         )}
 
         {ask?.status === 'error' && (
-          <div className="py-4">
+          <div className="pb-4">
             <SpeechBubble>
               <p className="font-display text-[24px] leading-tight text-ink">I couldn't get an answer just now.</p>
               <p className="mt-2 text-[17px] leading-[1.5] text-ink">The shelves are slow to answer. Try again in a moment.</p>
