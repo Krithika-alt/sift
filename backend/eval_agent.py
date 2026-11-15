@@ -123,7 +123,7 @@ def grade(case: dict, response: dict) -> bool:
 def make_agents(data: dict) -> dict:
     def genie_agent(q: str) -> dict:
         from genie import ask_genie
-        return ask_genie(q)
+        return ask_genie(q, stores=data["stores"])
 
     def grounded_agent(q: str) -> dict:
         return answer_question(q, None, data)

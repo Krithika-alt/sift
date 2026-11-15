@@ -120,7 +120,7 @@ def ask_agent(req: AskRequest):
     data = {"stores": ds.stores(), "products": ds.products(), "prices": ds.latest_prices()}
     if genie_enabled() and _intent(req.question) != "why":
         try:
-            return ask_genie(req.question, ranking=req.ranking)
+            return ask_genie(req.question, ranking=req.ranking, stores=data["stores"])
         except Exception:
             pass  # fall back to the grounded answers below
     out = answer_question(req.question, req.ranking, data)

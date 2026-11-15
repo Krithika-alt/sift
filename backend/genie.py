@@ -48,11 +48,22 @@ STYLE = ("Answer in 2 to 3 sentences using only data from the tables. Do not ask
          "questions. If the data does not contain the answer, say so.")
 
 
-def build_question(question: str, ranking: dict | None = None) -> str:
+def store_hint(stores: list | None) -> str:
+    """Store names like Pick 'n Save and Trader Joe's contain apostrophes, which break SQL string
+    literals. Give Genie the ids and tell it to filter on store_id."""
+    if not stores:
+        return ""
+    pairs = "; ".join(f"{s['store_id']} = {s['name']}" for s in stores)
+    return ("Store ids (always filter stores by store_id, never by store name, because some names "
+            f"contain apostrophes): {pairs}. ")
+
+
+def build_question(question: str, ranking: dict | None = None, stores_list: list | None = None) -> str:
     """Add the user's basket and winning store so Genie answers about THEIR items."""
+    hint = store_hint(stores_list)
     stores = (ranking or {}).get("ranked_stores") or []
     if not stores:
-        return f"{question}\n\n{STYLE}"
+        return f"{hint}{question}\n\n{STYLE}" if hint else f"{question}\n\n{STYLE}"
     top = stores[0]
     items = [b["name"] for b in top.get("items_breakdown", []) if b.get("name")]
     ctx = f"Context: the user's basket is: {', '.join(items)}. " if items else ""
@@ -62,7 +73,7 @@ def build_question(question: str, ranking: dict | None = None) -> str:
                 "same category and unit), preferably at that store. If a basket item is already the store "
                 "brand or the cheapest option, say it is already the cheapest choice instead of suggesting "
                 "a swap. Never recommend a swap to a product the user already has. ")
-    return f"{ctx}\nQuestion: {question}\n\n{STYLE}"
+    return f"{hint}{ctx}\nQuestion: {question}\n\n{STYLE}"
 
 
 def _headline(answer: str) -> str:
@@ -70,9 +81,10 @@ def _headline(answer: str) -> str:
     return first if first.endswith((".", "!", "?")) else first + "."
 
 
-def ask_genie(question: str, timeout: float = 25.0, max_rows: int = 5, ranking: dict | None = None) -> dict:
+def ask_genie(question: str, timeout: float = 25.0, max_rows: int = 5, ranking: dict | None = None,
+              stores: list | None = None) -> dict:
     """Return {"answer", "headline", "facts_used", "source": "genie"}."""
-    question = build_question(question, ranking)
+    question = build_question(question, ranking, stores)
     base = _base()
     r = requests.post(f"{base}/start-conversation", headers=_headers(),
                       json={"content": question}, timeout=15)
