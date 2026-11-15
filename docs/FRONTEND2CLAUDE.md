@@ -40,10 +40,12 @@ Colors (CSS tokens):
 - Each store owns one sticker color, used on its map pin, its tags and its receipt.
 
 Fonts (Google Fonts, nothing else):
-- Darumadrop One: headlines and anything the buddy says. 22px and up, at most one line per card.
-- Karla: everything read or tapped. Store names 700 (20-22px), body 400 (15-17px), buttons 600 (17px).
-- Courier Prime: every price, distance, label, receipt and sticker. Labels 700, uppercase, 1.5-3px letter spacing.
-- Never set two of the three at the same size side by side.
+- Darumadrop One: screen headlines and anything Tom says. Nothing else.
+- Karla: everything else, including section labels (600, 14px, sentence case, muted), meta lines (500, 13px, muted) and buttons (600, 17px).
+- Courier Prime: only money and the receipt. Prices and totals anywhere (700), the whole receipt, and sticker text. Never for labels, distances or counts outside the receipt.
+- Letter-spaced uppercase only inside stickers and on the receipt.
+
+Logo, stickers and buddies in code: always use src/components/Wordmark.jsx, Sticker.jsx and Buddies.jsx. Never redraw them. Tabs, Map, Saved and Me are specified in frontend/TABS.md.
 
 Text is never distorted. Rough or displacement filters apply only to shapes (sticker ovals, torn edges, map pieces), never to text or wordmark letters.
 
@@ -71,7 +73,7 @@ Core loop (this is the demo): Splash -> Pick your buddy (first launch only) -> B
    - Sentences like "I'm vegetarian" or "under $20" become need stickers on the bag; send them as `preferences` (budget updates `budget`). Tom replies in one line: "Noted. I'll keep that in mind." He never claims results are filtered.
    - Primary button "Sift my list". Below it, a row of past bags.
 4. Sifting: Tom says "Checking shelves near you..."; store stickers pop in one by one while POST /api/rank-stores runs.
-5. Results: torn-paper map on top with numbered store stickers and the user dot; eggshell sheet with a torn top; segmented control Cheapest / Balanced / Closest (re-calls rank-stores with weights Cheapest 0.85/0.1/0.05, Balanced 0.6/0.3/0.1, Closest 0.25/0.7/0.05 for price/distance/preference); Tom's one-line reason in Darumadrop; best-pick card (store, total, distance, items found, "SAVES $X VS NEARBY", "SEE RECEIPT") with a BEST PICK sticker on the corner; runner-ups as rows with store-color number stickers. Re-sorting animates. Under Tom, 3 question chips open Ask Tom.
+5. Results: torn-paper map on top with numbered store stickers and the user dot; eggshell sheet with a torn top; segmented control Cheapest / [Buddy]'s pick / Closest, e.g. "Tom's pick" (default; re-calls rank-stores with weights Cheapest 0.85/0.1/0.05, [Buddy]'s pick 0.6/0.3/0.1, Closest 0.25/0.7/0.05 for price/distance/preference); Tom's one-line reason in Darumadrop; best-pick card (store, total, distance, items found, "SAVES $X VS NEARBY", "SEE RECEIPT") with a BEST PICK sticker on the corner; runner-ups as rows with store-color number stickers. Re-sorting animates. Under Tom, 3 question chips open Ask Tom.
 6. Receipt: only Courier Prime on the receipt. Zigzag torn ends; centered store, address, time; dashed rules; each line item with dotted leader, price, an R marker if real, and price_age in muted text (STALE sticker if stale); bold TOTAL; savings vs nearby average; walk distance; "N REAL · N SIMULATED"; a barcode; "THANKS FOR SIFTING". Tom speaks above the receipt, never on it. Primary button "Walk there" (opens Apple Maps); link "Saw a different price?".
 
 Branches:

@@ -1,29 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { askAgent, getProducts, rankStores, reportPrice } from './api/client.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { askAgent, getProducts, health, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
-import { DEFAULT_BUDGET, DEFAULT_LOCATION, DEFAULT_MODE, DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { loadPastBags, savePastBag, setPastBagWinner, toItem, toRankItem } from './lib/bag.js'
+import TabBar from './components/TabBar.jsx'
+import Wordmark from './components/Wordmark.jsx'
+import { DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
+import { itemKey, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
+import { BuddyContext, buddyOf, loadProfile, saveProfile } from './lib/profile.js'
+import { savingsVsNearby } from './lib/stores.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
 import Bag from './screens/Bag.jsx'
+import BuddyPicker from './screens/BuddyPicker.jsx'
+import MapTab from './screens/MapTab.jsx'
+import Me from './screens/Me.jsx'
 import Receipt from './screens/Receipt.jsx'
 import ReportPriceSheet from './screens/ReportPriceSheet.jsx'
 import Results from './screens/Results.jsx'
+import Saved from './screens/Saved.jsx'
 import Sifting from './screens/Sifting.jsx'
+import Splash from './screens/Splash.jsx'
 
 const SLAP_MS = 3200
 const SLIDE_DELAY_MS = 450
+const SPLASH_MS = 1000
+const TAB_SCREENS = ['map', 'saved', 'me']
 
-function rankBody(bag, mode) {
+const bagSig = (items) => items.filter((i) => i.rank).map((i) => `${itemKey(i)}x${i.quantity ?? 1}`).sort().join('|')
+
+function rankBody(items, mode, budget, preferences, home) {
   const body = {
-    user_location: { lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon },
+    user_location: { lat: home.lat, lon: home.lon },
     // Only rows with rank text: typed items and matched voice items (rank_items). NOT FOUND rows stay out.
     // Plain string for one, {text, quantity} for more than one (field names match the backend).
-    items: bag.items.filter((i) => i.rank).map(toRankItem),
+    items: items.filter((i) => i.rank).map(toRankItem),
     weights: MODES.find((m) => m.id === mode).weights,
-    budget: bag.budget,
+    budget,
   }
-  if (bag.preferences.length) body.preferences = bag.preferences
+  if (preferences.length) body.preferences = preferences
   return body
 }
 
@@ -33,9 +46,16 @@ function friendlyError(err) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('bag') // bag | sifting | results | receipt
-  const [bag, setBag] = useState({ items: DEMO_BASKET, budget: DEFAULT_BUDGET, preferences: [] })
-  const [mode, setMode] = useState(DEFAULT_MODE)
+  const [phase, setPhase] = useState('splash') // splash | app
+  const [profile, setProfileState] = useState(loadProfile)
+  const setProfile = useCallback((fn) => setProfileState((p) => saveProfile(typeof fn === 'function' ? fn(p) : fn)), [])
+  const buddy = useMemo(() => buddyOf(profile.buddyId ?? 'tom'), [profile.buddyId])
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const [screen, setScreen] = useState('bag') // bag | sifting | results | receipt | map | saved | me
+  const [receiptFrom, setReceiptFrom] = useState('results')
+  const [bag, setBag] = useState({ items: DEMO_BASKET, budget: profile.budget, budgetSet: false, preferences: [] })
+  const [mode, setMode] = useState(profile.defaultSort)
   const [products, setProducts] = useState([])
   const [pastBags, setPastBags] = useState(loadPastBags)
   const [demo, setDemo] = useState(DEMO_MODE)
@@ -43,27 +63,42 @@ export default function App() {
   const [siftRanked, setSiftRanked] = useState(null)
   const [siftError, setSiftError] = useState('')
   const [ranked, setRanked] = useState([])
+  const [rankedSig, setRankedSig] = useState(null)
+  const [mapRanked, setMapRanked] = useState(null)
   const [siftedAt, setSiftedAt] = useState(() => new Date())
   const [busy, setBusy] = useState(false)
 
   const [receiptId, setReceiptId] = useState(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [slapId, setSlapId] = useState(null)
-
-  // Ask Tom: { question, ranked, status: 'loading' | 'done' | 'error', data }
   const [ask, setAsk] = useState(null)
   const [askOpen, setAskOpen] = useState(false)
-  const askId = useRef(0)
 
   const scrollRef = useRef(null)
-  const siftAt = useRef(null)
   const reqId = useRef(0)
+  const askId = useRef(0)
 
+  const budget = bag.budgetSet ? bag.budget : profile.budget
+  const preferences = useMemo(
+    () => [...new Set([...bag.preferences, ...profile.diet.map((d) => d.toLowerCase())])],
+    [bag.preferences, profile.diet],
+  )
+  const home = profile.home
+  const place = home.id === 'geo' ? 'you' : home.label
+  const fellBack = demo && !DEMO_MODE
+
+  // Splash: GET /api/health wakes the warehouse; show it about a second.
   useEffect(() => {
+    const started = Date.now()
+    health().then(() => setTimeout(() => setPhase('app'), Math.max(0, SPLASH_MS - (Date.now() - started))))
     getProducts()
       .then(({ data }) => setProducts(data))
       .catch(() => {})
   }, [])
+  // First launch: the buddy picker, once, before the Bag.
+  useEffect(() => {
+    if (phase === 'app' && !profile.buddyId) setPickerOpen(true)
+  }, [phase, profile.buddyId])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
@@ -75,32 +110,34 @@ export default function App() {
     return () => clearTimeout(t)
   }, [slapId])
 
-  async function rank(nextBag, nextMode) {
+  async function rank(items, nextMode) {
     const id = ++reqId.current
-    const { data, demo: wasDemo } = await rankStores(rankBody(nextBag, nextMode))
+    const { data, demo: wasDemo } = await rankStores(rankBody(items, nextMode, budget, preferences, home))
     return id === reqId.current ? { ranked: data.ranked_stores, demo: wasDemo } : null
   }
 
   async function sift() {
-    const saved = savePastBag(bag)
-    setPastBags(saved.list)
-    siftAt.current = saved.at
     setSiftRanked(null)
     setSiftError('')
     setScreen('sifting')
     try {
-      const res = await rank(bag, mode)
+      const res = await rank(bag.items, mode)
       if (!res) return
       setDemo(res.demo)
       setSiftedAt(new Date())
       setSiftRanked(res.ranked)
+      setRankedSig(bagSig(bag.items))
+      const best = res.ranked[0]
+      if (best) {
+        const winner = { store_id: best.store_id, total: best.total_basket_price, saved: Math.max(0, savingsVsNearby(best, res.ranked)) }
+        setPastBags(savePastBag({ ...bag, budget }, winner))
+      }
     } catch (err) {
       setSiftError(friendlyError(err))
     }
   }
 
   const finishSifting = useCallback(() => {
-    if (siftAt.current && siftRanked?.[0]) setPastBags(setPastBagWinner(siftAt.current, siftRanked[0]))
     setRanked(siftRanked)
     setScreen('results')
   }, [siftRanked])
@@ -110,7 +147,7 @@ export default function App() {
     setMode(nextMode)
     setBusy(true)
     try {
-      const res = await rank(bag, nextMode)
+      const res = await rank(bag.items, nextMode)
       if (res) {
         setDemo(res.demo)
         setRanked(res.ranked)
@@ -129,8 +166,8 @@ export default function App() {
     setScreen('results')
     setBusy(true)
     try {
-      const res = await rank(bag, mode)
-      if (!res) return
+      const res = await rank(bag.items, mode)
+      if (!res) return setBusy(false)
       setTimeout(() => {
         setDemo(res.demo || report.demo)
         setSiftedAt(new Date())
@@ -144,7 +181,7 @@ export default function App() {
   }
 
   // Reopening the same question for the same ranking shows the pending or finished answer.
-  async function askTom(question, force = false) {
+  async function askBuddy(question, force = false) {
     setAskOpen(true)
     if (!force && ask && ask.question === question && ask.ranked === ranked && ask.status !== 'error') return
     const id = ++askId.current
@@ -157,81 +194,154 @@ export default function App() {
     }
   }
 
+  // Map tab: use the last ranking; if none yet, rank the current bag (or the demo basket) once.
+  const bagEmpty = !bag.items.some((i) => i.rank)
+  useEffect(() => {
+    if (screen !== 'map' || ranked.length || mapRanked) return
+    const items = bagEmpty ? DEMO_BASKET : bag.items
+    rankStores(rankBody(items, mode, budget, preferences, home))
+      .then(({ data, demo: wasDemo }) => {
+        setMapRanked(data.ranked_stores)
+        setDemo(wasDemo)
+      })
+      .catch(() => {})
+  }, [screen, ranked.length, mapRanked, bagEmpty, bag.items, mode, budget, preferences, home])
+
+  function openReceipt(id, from) {
+    setReceiptId(id)
+    setReceiptFrom(from)
+    setScreen('receipt')
+  }
+
+  function loadBag(pb) {
+    setBag({ items: pb.items.map(toItem), budget: pb.budget, budgetSet: Boolean(pb.budgetSet), preferences: pb.preferences ?? [] })
+    setScreen('bag')
+  }
+
+  function changeTab(t) {
+    setScreen(t)
+  }
+
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
+  const tab = TAB_SCREENS.includes(screen) ? screen : 'bag'
+  const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen) && !askOpen && !reportOpen
+  const mapStores = ranked.length ? ranked : mapRanked ?? []
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-eggshell min-[440px]:bg-line">
-      <SvgDefs />
-      <StickerDefs />
-      {/* iPhone viewport 390 x 844. Full screen on a phone, framed on a desktop. */}
-      <div className="relative h-dvh w-full overflow-hidden bg-eggshell min-[440px]:h-[844px] min-[440px]:w-[390px] min-[440px]:rounded-[48px] min-[440px]:border-[1.5px] min-[440px]:border-ink">
-        <main ref={scrollRef} className="grain no-scrollbar h-full overflow-y-auto overscroll-contain">
-          {screen === 'bag' && (
-            <Bag
-              bag={bag}
-              setBag={setBag}
-              products={products}
-              pastBags={pastBags}
-              onLoadPast={(pb) =>
-                setBag({ items: pb.items.map(toItem), budget: pb.budget, budgetSet: pb.budget !== DEFAULT_BUDGET, preferences: pb.preferences ?? [] })
-              }
-              onSift={sift}
-              demo={demo}
-            />
-          )}
-          {screen === 'sifting' && (
-            <Sifting
-              ranked={siftRanked}
-              error={siftError}
-              demo={demo}
-              onDone={finishSifting}
-              onBack={() => setScreen('bag')}
-            />
-          )}
-          {screen === 'results' && (
-            <Results
-              ranked={ranked}
-              mode={mode}
-              onMode={changeMode}
-              budget={bag.budget}
-              demo={demo}
-              busy={busy}
-              slapId={slapId}
-              onReceipt={(id) => {
-                setReceiptId(id)
-                setScreen('receipt')
-              }}
-              onEditBag={() => setScreen('bag')}
-              onAsk={askTom}
-            />
-          )}
-          {screen === 'receipt' && receiptStore && (
-            <Receipt
-              store={receiptStore}
-              ranked={ranked}
-              siftedAt={siftedAt}
-              demo={demo}
-              onBack={() => setScreen('results')}
-              onReport={() => setReportOpen(true)}
-            />
-          )}
-        </main>
+    <BuddyContext.Provider value={buddy}>
+      <div className="flex min-h-dvh items-center justify-center gap-16 bg-eggshell min-[500px]:grain min-[500px]:bg-kraft">
+        <SvgDefs />
+        <StickerDefs />
+        {/* Laptop presentation: wordmark and line to the left of the phone */}
+        <div className="hidden flex-col items-start min-[900px]:flex">
+          <Wordmark size={96} />
+          <p className="mt-3 font-display text-[32px] text-ink">Your list. Our pick.</p>
+        </div>
 
-        <ReportPriceSheet
-          open={reportOpen}
-          store={receiptStore}
-          products={products}
-          onClose={() => setReportOpen(false)}
-          onSend={sendReport}
-        />
+        {/* iPhone viewport 390 x 844. Full screen on a phone, framed on a laptop. */}
+        <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-eggshell min-[500px]:h-[844px] min-[500px]:w-[390px] min-[500px]:rounded-[44px] min-[500px]:border-[1.5px] min-[500px]:border-ink">
+          {phase === 'splash' ? (
+            <Splash />
+          ) : (
+            <>
+              <main
+                ref={scrollRef}
+                className={`grain no-scrollbar isolate min-h-0 flex-1 overscroll-contain ${screen === 'map' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+              >
+                {screen === 'bag' && (
+                  <Bag
+                    bag={bag}
+                    setBag={setBag}
+                    budget={budget}
+                    products={products}
+                    pastBags={pastBags}
+                    onLoadPast={loadBag}
+                    onRenamePast={(at, name) => setPastBags(renamePastBag(at, name))}
+                    onSift={sift}
+                    demo={demo}
+                    place={place}
+                    userName={profile.name}
+                  />
+                )}
+                {screen === 'sifting' && (
+                  <Sifting ranked={siftRanked} error={siftError} demo={demo} onDone={finishSifting} onBack={() => setScreen('bag')} />
+                )}
+                {screen === 'results' && (
+                  <Results
+                    ranked={ranked}
+                    mode={mode}
+                    onMode={changeMode}
+                    budget={budget}
+                    demo={demo}
+                    fellBack={fellBack}
+                    busy={busy}
+                    slapId={slapId}
+                    onReceipt={(id) => openReceipt(id, 'results')}
+                    onEditBag={() => setScreen('bag')}
+                    onAsk={askBuddy}
+                    user={home}
+                  />
+                )}
+                {screen === 'receipt' && receiptStore && (
+                  <Receipt
+                    store={receiptStore}
+                    ranked={ranked}
+                    siftedAt={siftedAt}
+                    demo={demo}
+                    onBack={() => setScreen(receiptFrom)}
+                    onReport={() => setReportOpen(true)}
+                  />
+                )}
+                {screen === 'map' && (
+                  <MapTab
+                    ranked={mapStores}
+                    user={home}
+                    bagEmpty={bagEmpty}
+                    canReceipt={ranked.length > 0 && rankedSig === bagSig(bag.items)}
+                    onReceipt={(id) => openReceipt(id, 'map')}
+                    demo={demo}
+                  />
+                )}
+                {screen === 'saved' && (
+                  <Saved
+                    pastBags={pastBags}
+                    onOpen={loadBag}
+                    onRename={(at, name) => setPastBags(renamePastBag(at, name))}
+                    onRemove={(at) => setPastBags(removePastBag(at))}
+                  />
+                )}
+                {screen === 'me' && <Me profile={profile} setProfile={setProfile} onChangeBuddy={() => setPickerOpen(true)} />}
+              </main>
 
-        <AskTomSheet
-          open={askOpen && screen === 'results'}
-          ask={ask}
-          onClose={() => setAskOpen(false)}
-          onRetry={() => askTom(ask.question, true)}
-        />
+              {showTabs && <TabBar active={tab} onChange={changeTab} />}
+
+              <ReportPriceSheet
+                open={reportOpen}
+                store={receiptStore}
+                products={products}
+                onClose={() => setReportOpen(false)}
+                onSend={sendReport}
+              />
+              <AskTomSheet
+                open={askOpen && screen === 'results'}
+                ask={ask}
+                onClose={() => setAskOpen(false)}
+                onRetry={() => askBuddy(ask.question, true)}
+              />
+              <BuddyPicker
+                key={pickerOpen ? 'open' : 'closed'}
+                open={pickerOpen}
+                current={profile.buddyId}
+                onPick={(id) => {
+                  setProfile((p) => ({ ...p, buddyId: id }))
+                  setPickerOpen(false)
+                }}
+                onClose={profile.buddyId ? () => setPickerOpen(false) : undefined}
+              />
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </BuddyContext.Provider>
   )
 }

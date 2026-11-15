@@ -1,20 +1,14 @@
 import { motion } from 'framer-motion'
-import { BuddyLine, DemoBadge, TornEdge } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, SectionLabel, TornEdge } from '../components/brand.jsx'
 import PaperMap from '../components/PaperMap.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { DEFAULT_LOCATION, MODES } from '../config.js'
-import {
-  itemsFound,
-  matchPct,
-  miles,
-  money,
-  priceCounts,
-  reasonLine,
-  savingsVsNearby,
-  storeColor,
-  walkMinutes,
-} from '../lib/stores.js'
+import { MODES } from '../config.js'
+import { useBuddy } from '../lib/profile.js'
+import { itemsFound, matchPct, money, priceCounts, reasonLine, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
 import { ASK_CHIPS } from './AskTomSheet.jsx'
+
+const fmtMi = (mi) => `${Number(mi).toFixed(1)} mi`
+export const modeLabel = (m, buddyName) => (m.id === 'balanced' ? `${buddyName}'s pick` : m.label)
 
 // The sticker slap after a price report: lands big and tilted, then settles.
 function SlapSticker() {
@@ -32,10 +26,41 @@ function SlapSticker() {
   )
 }
 
-function BestCard({ store, ranked, slapped, onReceipt }) {
-  const { found, total } = itemsFound(store)
+/**
+ * One extra sticker per store (the card already has BEST PICK or its number), in priority order:
+ * the price-report slap, SIMULATED (when the result mixes real and simulated prices),
+ * CROWD-CHECKED (last_crowd_ping), BEST UNIT PRICE (highest unit_price_savings_pct).
+ */
+function ExtraSticker({ store, ctx }) {
+  if (ctx.slapId === store.store_id) return <SlapSticker />
+  if (!ctx.allSimulated && priceCounts(store).simulated > 0)
+    return (
+      <Sticker dashed size="sm" tilt={4}>
+        Simulated
+      </Sticker>
+    )
+  if (store.last_crowd_ping)
+    return (
+      <Sticker color="sardine" size="sm" tilt={-4}>
+        Crowd-checked
+      </Sticker>
+    )
+  if (ctx.bestUnitId === store.store_id)
+    return (
+      <Sticker color="butter" size="sm" tilt={5}>
+        Best unit price
+      </Sticker>
+    )
+  return null
+}
+
+const meta = (s) => {
+  const { found, total } = itemsFound(s)
+  return `${fmtMi(s.distance_miles)} · ${walkMinutes(s.distance_miles)} min walk · ${found} of ${total} · ${matchPct(s)} match`
+}
+
+function BestCard({ store, ranked, ctx, onReceipt }) {
   const saves = savingsVsNearby(store, ranked)
-  const { simulated } = priceCounts(store)
   return (
     <button
       type="button"
@@ -48,42 +73,24 @@ function BestCard({ store, ranked, slapped, onReceipt }) {
           Best pick
         </Sticker>
       </span>
-
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-[20px] font-bold leading-tight text-ink">{store.name}</span>
         <span className="font-mono text-[24px] font-bold leading-none text-ink">{money(store.total_basket_price)}</span>
       </span>
-
-      <span className="mt-2 block font-mono text-[12px] uppercase tracking-normal text-muted">
-        {miles(store.distance_miles)} · {walkMinutes(store.distance_miles)} min walk · {found} of {total} · Match{' '}
-        {matchPct(store)}
-      </span>
-
+      <span className="mt-2 block text-[13px] font-medium text-muted">{meta(store)}</span>
       <span className="mt-3 flex min-h-[30px] items-center justify-between gap-2">
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.06em] text-olive">
+        <span className="text-[14px] font-semibold text-olive">
           {saves > 0.005 ? `Saves ${money(saves)} vs nearby` : 'About average nearby'}
         </span>
-        {slapped ? (
-          <SlapSticker />
-        ) : (
-          simulated > 0 && (
-            <Sticker dashed size="sm" tilt={4}>
-              Simulated
-            </Sticker>
-          )
-        )}
+        <ExtraSticker store={store} ctx={ctx} />
       </span>
-
-      <span className="mt-2 block text-right font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-ink">
-        Receipt &gt;
-      </span>
+      <span className="mt-2 block text-right text-[15px] font-semibold text-ink">Receipt &gt;</span>
     </button>
   )
 }
 
-function RunnerRow({ store, n, slapped, onReceipt }) {
+function RunnerRow({ store, n, ctx, onReceipt }) {
   const { found, total } = itemsFound(store)
-  const { real } = priceCounts(store)
   return (
     <button
       type="button"
@@ -96,42 +103,47 @@ function RunnerRow({ store, n, slapped, onReceipt }) {
       </Sticker>
       <span className="min-w-0 flex-1">
         <span className="block text-[16px] font-bold leading-tight text-ink">{store.name}</span>
-        <span className="mt-0.5 block font-mono text-[11px] uppercase tracking-[0.06em] text-muted">
-          {miles(store.distance_miles)} · {found} of {total} · Match {matchPct(store)}
+        <span className="mt-0.5 block text-[13px] font-medium text-muted">
+          {fmtMi(store.distance_miles)} · {found} of {total} · {matchPct(store)} match
         </span>
       </span>
-      <span className="flex flex-col items-end gap-0.5">
-        {slapped && <SlapSticker />}
+      <span className="flex flex-col items-end gap-1">
+        <ExtraSticker store={store} ctx={ctx} />
         <span className="font-mono text-[15px] font-bold text-ink">{money(store.total_basket_price)}</span>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
-          {real > 0 ? `${real} real` : 'Simulated'}
-        </span>
       </span>
     </button>
   )
 }
 
-export default function Results({ ranked, mode, onMode, budget, demo, busy, slapId, onReceipt, onEditBag, onAsk }) {
+export default function Results({ ranked, mode, onMode, budget, demo, fellBack, busy, slapId, onReceipt, onEditBag, onAsk, user }) {
+  const buddy = useBuddy()
+  const allSimulated = ranked.every((s) => priceCounts(s).real === 0)
+  const bestUnitId = ranked.reduce((a, s) => (!a || s.unit_price_savings_pct > a.unit_price_savings_pct ? s : a), null)?.store_id
+  const ctx = { slapId, allSimulated, bestUnitId }
+
   return (
-    <div className="min-h-full pb-[34px]">
+    <div className="min-h-full pb-6">
       <div className="relative">
-        <PaperMap ranked={ranked} user={DEFAULT_LOCATION} />
-        <div className="absolute inset-x-0 top-12 flex items-center justify-between px-5">
+        <PaperMap stores={ranked} user={user} sizes={Object.fromEntries(ranked.map((s) => [s.store_id, 'md']))} height={300} focusY={170} />
+        <div className="pointer-events-none absolute inset-x-0 top-12 z-10 flex items-center justify-between px-5">
           <button
             type="button"
             onClick={onEditBag}
-            className="min-h-11 rounded-[14px] border-[1.5px] border-line bg-receipt px-4 text-[17px] font-semibold text-ink"
+            aria-label="Back to my bag"
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-line bg-eggshell text-ink"
           >
-            ‹ My bag
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
           </button>
           {demo && <DemoBadge />}
         </div>
       </div>
 
-      <div className="relative -mt-6">
+      <div className="relative z-10 -mt-6">
         <TornEdge color="var(--eggshell)" seed={5} height={14} />
-        <div className="grain bg-eggshell px-5 pt-2">
-          {/* Cheapest / Balanced / Closest */}
+        <div className="grain bg-eggshell px-5">
+          <div className="h-2" />
           <div role="radiogroup" aria-label="Sort stores" className="flex rounded-[12px] border-[1.5px] border-ink p-1">
             {MODES.map((m) => {
               const on = m.id === mode
@@ -142,42 +154,42 @@ export default function Results({ ranked, mode, onMode, budget, demo, busy, slap
                   role="radio"
                   aria-checked={on}
                   onClick={() => onMode(m.id)}
-                  className={`min-h-11 flex-1 rounded-[9px] text-[17px] font-semibold transition-colors ${
-                    on ? 'bg-ink text-eggshell' : 'text-ink'
-                  }`}
+                  className={`min-h-11 flex-1 rounded-[9px] text-[15px] font-semibold transition-colors ${on ? 'bg-ink text-eggshell' : 'text-ink'}`}
                 >
-                  {m.label}
+                  {modeLabel(m, buddy.name)}
                 </button>
               )
             })}
           </div>
 
           <div className="mt-6">
-            <BuddyLine size={52} text={22}>
-              {reasonLine(ranked, budget)}
+            <BuddyLine size={56} text={22}>
+              {fellBack ? (
+                "I can't reach the shelves right now. Showing saved prices."
+              ) : (
+                <>
+                  Dug up your best deal.
+                  <span className="block">{reasonLine(ranked, budget)}</span>
+                </>
+              )}
             </BuddyLine>
           </div>
 
           <ol aria-busy={busy} className={`mt-6 transition-opacity ${busy ? 'opacity-60' : ''}`}>
             {ranked.map((s, i) => (
-              <motion.li
-                key={s.store_id}
-                layout
-                transition={{ type: 'spring', damping: 26, stiffness: 260 }}
-                className={i === 0 ? 'mb-4' : ''}
-              >
+              <motion.li key={s.store_id} layout transition={{ type: 'spring', damping: 26, stiffness: 260 }} className={i === 0 ? 'mb-4' : ''}>
                 {i === 0 ? (
-                  <BestCard store={s} ranked={ranked} slapped={slapId === s.store_id} onReceipt={() => onReceipt(s.store_id)} />
+                  <BestCard store={s} ranked={ranked} ctx={ctx} onReceipt={() => onReceipt(s.store_id)} />
                 ) : (
-                  <RunnerRow store={s} n={i + 1} slapped={slapId === s.store_id} onReceipt={() => onReceipt(s.store_id)} />
+                  <RunnerRow store={s} n={i + 1} ctx={ctx} onReceipt={() => onReceipt(s.store_id)} />
                 )}
               </motion.li>
             ))}
           </ol>
+          {allSimulated && <p className="mt-3 text-[13px] text-muted">All prices here are simulated for the demo.</p>}
 
-          {/* Ask Tom: one scrolling row after the runner-ups */}
-          <section aria-label="Ask Tom" className="mt-6">
-            <h3 className="label text-[11px] text-muted">Ask Tom</h3>
+          <section aria-label={`Ask ${buddy.name}`} className="mt-6">
+            <SectionLabel>Ask {buddy.name}</SectionLabel>
             <div className="no-scrollbar -mx-5 mt-1 flex gap-2 overflow-x-auto px-5">
               {ASK_CHIPS.map((c) => (
                 <button key={c.label} type="button" onClick={() => onAsk(c.question)} className="flex min-h-11 shrink-0 items-center">

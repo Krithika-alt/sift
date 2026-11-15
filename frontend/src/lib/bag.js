@@ -68,6 +68,7 @@ export const toItem = (x) => (typeof x === 'string' ? typedItem(x) : { quantity:
 
 // Past bags (localStorage). Wrapped in try/catch so private windows still work.
 const KEY = 'sift.pastBags'
+const MAX_PAST = 12
 
 export function loadPastBags() {
   try {
@@ -86,20 +87,43 @@ function writePastBags(list) {
   return list
 }
 
-/** Saves the bag before sifting. Returns { list, at } so the winner can be added later. */
-export function savePastBag(bag) {
-  const items = bag.items.filter((i) => i.rank)
-  const sig = (b) => b.items.map((i) => itemKey(toItem(i))).sort().join('|')
-  const entry = { items, budget: bag.budget, preferences: bag.preferences, at: Date.now() }
-  if (!items.length) return { list: loadPastBags(), at: null }
-  const list = [entry, ...loadPastBags().filter((b) => sig(b) !== sig(entry))].slice(0, 6)
-  return { list: writePastBags(list), at: entry.at }
+// Auto-name from contents: eggs + oats + yogurt -> "Breakfast run"; chicken + rice -> "Dinner basics";
+// otherwise the first two items, e.g. "Eggs & oats".
+export function autoName(items) {
+  const text = items.map((i) => toItem(i).label.toLowerCase()).join(' | ')
+  const has = (w) => text.includes(w)
+  if (has('egg') && has('oat') && has('yogurt')) return 'Breakfast run'
+  if (has('chicken') && has('rice')) return 'Dinner basics'
+  const short = (l) => l.split(',')[0].trim().toLowerCase()
+  const names = items.slice(0, 2).map((i) => short(toItem(i).label))
+  const joined = names.join(' & ')
+  return joined.charAt(0).toUpperCase() + joined.slice(1)
 }
 
-/** Remembers which store won for a saved bag: { store_id, total }. */
-export function setPastBagWinner(at, store) {
-  const list = loadPastBags().map((b) =>
-    b.at === at ? { ...b, winner: { store_id: store.store_id, total: store.total_basket_price } } : b,
-  )
-  return writePastBags(list)
+/**
+ * Every successful sift saves the bag (newest first, max 12), with the winner:
+ * winner = { store_id, total, saved } where saved = dollars below the nearby average.
+ */
+export function savePastBag(bag, winner) {
+  const items = bag.items.filter((i) => i.rank)
+  if (!items.length) return loadPastBags()
+  const sig = (b) => b.items.map((i) => itemKey(toItem(i))).sort().join('|')
+  const old = loadPastBags()
+  const same = old.find((b) => sig(b) === sig({ items }))
+  const entry = {
+    items,
+    budget: bag.budget,
+    budgetSet: Boolean(bag.budgetSet),
+    preferences: bag.preferences,
+    name: same?.renamed ? same.name : autoName(items),
+    renamed: Boolean(same?.renamed),
+    winner,
+    at: Date.now(),
+  }
+  return writePastBags([entry, ...old.filter((b) => b !== same)].slice(0, MAX_PAST))
 }
+
+export const renamePastBag = (at, name) =>
+  writePastBags(loadPastBags().map((b) => (b.at === at ? { ...b, name: name.trim() || autoName(b.items), renamed: Boolean(name.trim()) } : b)))
+
+export const removePastBag = (at) => writePastBags(loadPastBags().filter((b) => b.at !== at))

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { parseList } from '../api/client.js'
-import { BottomBar, BuddyLine, DemoBadge, PrimaryButton, Pulse, TornEdge, Wordmark } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, Pulse, SectionLabel, TornEdge } from '../components/brand.jsx'
+import PastBagCard from '../components/PastBagCard.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { DEFAULT_BUDGET, DEFAULT_LOCATION } from '../config.js'
-import { itemKey, parseEntry, toItem, typedItem, voiceItems } from '../lib/bag.js'
-import { money, storeColor } from '../lib/stores.js'
+import Wordmark from '../components/Wordmark.jsx'
+import { itemKey, parseEntry, typedItem, voiceItems } from '../lib/bag.js'
+import { useBuddy } from '../lib/profile.js'
 import { useSpeech } from '../lib/useSpeech.js'
 
 const NEED_TILTS = [-5, 4]
@@ -47,7 +48,7 @@ function Stepper({ item, onChange }) {
       <IconButton label={`Fewer ${item.label}`} disabled={item.quantity <= 1} onClick={() => onChange(item.quantity - 1)}>
         <span className="flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-ink text-[16px]">−</span>
       </IconButton>
-      <span className="w-5 text-center font-mono text-[15px] font-bold text-ink" aria-live="polite">
+      <span className="w-5 text-center text-[16px] font-bold text-ink" aria-live="polite">
         {item.quantity}
       </span>
       <IconButton label={`More ${item.label}`} disabled={item.quantity >= MAX_QTY} onClick={() => onChange(item.quantity + 1)}>
@@ -57,37 +58,16 @@ function Stepper({ item, onChange }) {
   )
 }
 
-function PastBagCard({ pb, onClick }) {
-  const items = pb.items.map(toItem)
-  const name = items
-    .slice(0, 2)
-    .map((i) => i.label)
-    .join(', ')
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-[140px] shrink-0 flex-col gap-2 rounded-[4px] border-[1.5px] border-line bg-receipt p-3 text-left"
-    >
-      <span className="flex items-start justify-between gap-2">
-        <span className="line-clamp-2 text-[15px] font-bold leading-tight text-ink first-letter:uppercase">{name}</span>
-        {pb.winner && (
-          <Sticker shape="round" size="sm" color={storeColor(pb.winner.store_id)} tilt={-5}>
-            1
-          </Sticker>
-        )}
-      </span>
-      <span className="mt-auto whitespace-nowrap font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-muted">
-        {items.length} items{pb.winner ? ` · ${money(pb.winner.total)}` : ''}
-      </span>
-    </button>
-  )
-}
-
-export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSift, demo }) {
+export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPast, onRenamePast, onSift, demo, place, userName }) {
+  const buddy = useBuddy()
   const [text, setText] = useState('')
-  const [tomLine, setTomLine] = useState('What do you need?')
+  const [tomLine, setTomLine] = useState(null) // null = the default greeting
   const [parsing, setParsing] = useState(false)
+  const greeting = bag.items.length === 0
+    ? "Add a few things and I'll start digging."
+    : userName
+      ? `Hi, ${userName}. What do you need?`
+      : 'What do you need?'
 
   function addItems(rows) {
     setBag((b) => {
@@ -155,7 +135,7 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
   const removeNeed = (need) =>
     setBag((b) =>
       need.budget
-        ? { ...b, budget: DEFAULT_BUDGET, budgetSet: false }
+        ? { ...b, budgetSet: false }
         : { ...b, preferences: b.preferences.filter((x) => x !== need.text) },
     )
 
@@ -163,7 +143,7 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
 
   // Need stickers: budget first, then preferences. At most two stickers on the bag.
   const needs = [
-    ...(bag.budgetSet ? [{ text: `Under $${bag.budget}`, budget: true }] : []),
+    ...(bag.budgetSet ? [{ text: `Under $${budget}`, budget: true }] : []),
     ...bag.preferences.map((p) => ({ text: p })),
   ]
   const shownNeeds = needs.slice(-2)
@@ -175,14 +155,14 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
         <header className="flex items-center justify-between gap-3">
           <Wordmark size={34} />
           <span className="flex items-center gap-2">
-            <span className="label whitespace-nowrap text-[11px] text-muted">Near {DEFAULT_LOCATION.label}</span>
+            <span className="whitespace-nowrap text-[14px] font-semibold text-muted">Near {place}</span>
             {demo && <DemoBadge />}
           </span>
         </header>
 
         <div className="mt-6">
           <BuddyLine size={64} text={28}>
-            {speech.listening ? <Pulse>Listening</Pulse> : parsing ? <Pulse>Thinking</Pulse> : tomLine}
+            {speech.listening ? <Pulse>Listening</Pulse> : parsing ? <Pulse>Thinking</Pulse> : tomLine ?? greeting}
           </BuddyLine>
         </div>
 
@@ -190,8 +170,9 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
         <section aria-label="Your bag" className="mt-6">
           <TornEdge color="var(--kraft)" seed={11} />
           <div className="grain rounded-b-[4px] bg-kraft px-4 pb-2 pt-2">
-            <h2 className="label text-ink">
-              Your bag · {bag.items.length} {bag.items.length === 1 ? 'item' : 'items'} · Budget ${bag.budget}
+            <h2 className="text-[14px] font-semibold text-ink">
+              Your bag · {bag.items.length} {bag.items.length === 1 ? 'item' : 'items'} · Budget{' '}
+              <span className="font-mono font-bold">${budget}</span>
             </h2>
 
             {shownNeeds.length > 0 && (
@@ -210,7 +191,7 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
                   </button>
                 ))}
                 {hiddenNeeds.length > 0 && (
-                  <span className="label text-[10px] text-ink">+ {hiddenNeeds.map((n) => n.text).join(', ')}</span>
+                  <span className="text-[13px] font-semibold text-ink">+ {hiddenNeeds.map((n) => n.text).join(', ')}</span>
                 )}
               </div>
             )}
@@ -262,14 +243,14 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
                     +
                   </span>
                   <label htmlFor="bag-input" className="sr-only">
-                    Tell Tom what you need
+                    Tell {buddy.name} what you need
                   </label>
                   <input
                     id="bag-input"
                     value={speech.listening ? speech.live : text}
                     onChange={(e) => setText(e.target.value)}
                     readOnly={speech.listening || parsing}
-                    placeholder={speech.listening ? '' : 'Tell Tom what you need'}
+                    placeholder={speech.listening ? '' : `Tell ${buddy.name} what you need`}
                     autoComplete="off"
                     enterKeyHint="done"
                     className={`min-h-11 min-w-0 flex-1 bg-transparent text-[17px] placeholder:text-muted focus:outline-none ${
@@ -315,21 +296,31 @@ export default function Bag({ bag, setBag, products, pastBags, onLoadPast, onSif
 
         {pastBags.length > 0 && (
           <section aria-label="Past bags" className="mt-6">
-            <h3 className="label text-[11px] text-muted">Past bags</h3>
-            <div className="no-scrollbar -mx-5 mt-2 flex gap-3 overflow-x-auto px-5 pb-1">
+            <SectionLabel>Past bags</SectionLabel>
+            <div className="no-scrollbar -mx-5 mt-1 flex gap-3 overflow-x-auto px-5 pb-1">
               {pastBags.map((pb) => (
-                <PastBagCard key={pb.at} pb={pb} onClick={() => onLoadPast(pb)} />
+                <PastBagCard key={pb.at} pb={pb} onOpen={() => onLoadPast(pb)} onRename={(name) => onRenamePast(pb.at, name)} />
               ))}
+              <span aria-hidden="true" className="w-2 shrink-0" />
             </div>
           </section>
         )}
       </div>
 
-      <BottomBar>
-        <PrimaryButton disabled={!rankable || speech.listening || parsing} onClick={onSift}>
-          Sift my list
-        </PrimaryButton>
-      </BottomBar>
+      {/* Soil band: the only inverted button in the app */}
+      <div className="sticky bottom-0 z-10 mt-auto">
+        <TornEdge color="var(--soil)" seed={41} height={12} />
+        <div className="soil flex h-[108px] items-center px-5">
+          <button
+            type="button"
+            disabled={!rankable || speech.listening || parsing}
+            onClick={onSift}
+            className="min-h-[52px] w-full rounded-[14px] bg-eggshell px-5 text-[17px] font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-60"
+          >
+            Sift my list
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

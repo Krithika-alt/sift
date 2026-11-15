@@ -35,7 +35,8 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
   const saves = savingsVsNearby(store, ranked)
   const listed = new Set(store.items_breakdown.map((i) => i.query))
   const notFound = store.missing_items.filter((q) => !listed.has(q))
-  const anyOut = store.items_breakdown.some((i) => !i.in_stock)
+  const inStock = store.items_breakdown.filter((i) => i.in_stock)
+  const notHere = store.items_breakdown.filter((i) => !i.in_stock)
   const when = siftedAt
     .toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     .toUpperCase()
@@ -62,12 +63,15 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
             <header className="text-center">
               <h2 className="text-[16px] font-bold uppercase tracking-[0.06em]">{store.name}</h2>
               <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-muted">{when}</p>
+              {store.last_crowd_ping && (
+                <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-muted">Checked {store.last_crowd_ping}</p>
+              )}
             </header>
 
             <Rule />
 
             <ul className="space-y-3">
-              {store.items_breakdown.map((item) => {
+              {inStock.map((item) => {
                 const qty = item.quantity ?? 1
                 return (
                   <li key={item.query}>
@@ -77,15 +81,12 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
                         {item.name}
                       </span>
                       <span className="dotted-leader mt-[14px] !transform-none" aria-hidden="true" />
-                      <span className={`font-bold ${item.in_stock ? '' : 'text-muted line-through'}`}>
-                        {money(lineTotal(item))}
-                      </span>
+                      <span className="font-bold">{money(lineTotal(item))}</span>
                       <span className="ml-1 w-3 text-center text-[11px] font-bold leading-5 text-olive" aria-label={isReal(item) ? 'real price' : undefined}>
                         {isReal(item) ? 'R' : ''}
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] uppercase tracking-[0.06em] text-muted">
-                      {!item.in_stock && <span className="font-bold text-ink">Out of stock</span>}
                       {qty > 1 && <span>{money(item.price)} each</span>}
                       {item.unit_price && <span>{item.unit_price}</span>}
                       {item.price_age && <span>{item.price_age}</span>}
@@ -107,17 +108,34 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
               ))}
             </ul>
 
+            {notHere.length > 0 && (
+              <>
+                <Rule />
+                <ul className="space-y-2">
+                  {notHere.map((item) => (
+                    <li key={item.query} className="flex items-start text-[15px] leading-5">
+                      <span className="min-w-0 max-w-[68%] uppercase underline decoration-tomato decoration-dashed decoration-2 underline-offset-4">
+                        Not at this store: {(item.quantity ?? 1) > 1 && `${item.quantity} x `}
+                        {item.query}
+                      </span>
+                      <span className="dotted-leader mt-[14px] !transform-none" aria-hidden="true" />
+                      <span className="font-bold">{money(lineTotal(item))}</span>
+                      <span className="ml-1 w-3" />
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.06em] text-muted">
+                  Counted at the highest nearby price
+                </p>
+              </>
+            )}
+
             <Rule />
 
             <div className="flex items-baseline justify-between text-[24px] font-bold">
               <span className="tracking-[0.12em]">TOTAL</span>
               <span>{money(store.total_basket_price)}</span>
             </div>
-            {anyOut && (
-              <p className="mt-1 text-[11px] uppercase tracking-[0.06em] text-muted">
-                Out-of-stock items counted at the highest nearby price
-              </p>
-            )}
 
             <div className="mt-4 space-y-1 text-[12px] uppercase tracking-[0.12em]">
               <p>{saves >= 0 ? `Saves ${money(saves)}` : `${money(-saves)} more than`} vs nearby avg</p>
@@ -132,7 +150,7 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
             <p className="mt-3 text-center text-[12px] font-bold tracking-[0.12em]">
               {real} REAL · {simulated} SIMULATED
             </p>
-            <p className="mt-2 text-center text-[12px] font-bold tracking-[0.25em]">THANKS FOR SIFTING</p>
+            <p className="mt-2 text-center text-[12px] font-bold tracking-[0.25em]">DUG UP BY SIFT</p>
           </div>
           <TornEdge color="var(--receipt)" edge="bottom" seed={47} height={10} teeth={40} />
         </article>

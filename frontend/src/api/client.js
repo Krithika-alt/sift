@@ -77,3 +77,14 @@ export async function askAgent(body) {
   if (DEMO_MODE) return { data: await mock.askAgent(body), demo: true }
   return { data: await request('/api/ask-agent', { method: 'POST', body, timeout: ASK_TIMEOUT_MS }), demo: false }
 }
+
+/** GET /api/health (wakes the warehouse). Never throws; resolves to true/false. */
+export async function health() {
+  if (DEMO_MODE) return true
+  try {
+    await request('/api/health', { timeout: 2500 })
+    return true
+  } catch {
+    return false
+  }
+}

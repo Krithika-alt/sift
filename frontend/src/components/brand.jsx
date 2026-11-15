@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
+import Buddy from './Buddies.jsx'
+import { useBuddy } from '../lib/profile.js'
 
-// Shape-only filters: Tom's body and the map pieces. Never applied to text.
+// Shape-only filters: paper scraps and map pieces. Never applied to text.
 // Sticker edges come from <StickerDefs /> in Sticker.jsx.
 export function SvgDefs() {
   return (
@@ -8,7 +10,7 @@ export function SvgDefs() {
       <defs>
         <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
           <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="3" />
-          <feDisplacementMap in="SourceGraphic" scale="3" />
+          <feDisplacementMap in="SourceGraphic" scale="2.5" />
         </filter>
         <filter id="rough-map" x="-5%" y="-5%" width="110%" height="110%">
           <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="8" />
@@ -58,52 +60,18 @@ export function TornEdge({ color = 'var(--kraft)', edge = 'top', height = 12, te
   )
 }
 
-/**
- * "sift" hand-lettered in Darumadrop One; the i is a short stem with a leaf as its dot.
- * Ink letters and olive leaf on eggshell. No filters. Minimum 28px tall.
- */
-export function Wordmark({ size = 34, letter = 'var(--ink)', leaf = 'var(--olive)' }) {
-  return (
-    <span
-      role="img"
-      aria-label="sift"
-      className="inline-flex items-baseline font-display leading-none"
-      style={{ fontSize: size, color: letter, minHeight: 28 }}
-    >
-      <span aria-hidden="true">s</span>
-      <svg aria-hidden="true" viewBox="0 0 26 100" style={{ height: '1em', width: '0.26em', margin: '0 0.02em' }}>
-        <rect x="7" y="48" width="12" height="52" rx="6" fill={letter} />
-        <path d="M13 40 C 2 34, 2 16, 15 6 C 26 16, 24 34, 13 40 Z" fill={leaf} />
-        <path d="M13 38 C 13 30, 14 20, 15 10" stroke="var(--eggshell)" strokeWidth="1.6" fill="none" opacity="0.6" />
-      </svg>
-      <span aria-hidden="true">ft</span>
-    </span>
-  )
+/** The chosen buddy (Buddies.jsx, never redrawn). */
+export function MyBuddy({ size = 64, style }) {
+  const buddy = useBuddy()
+  return <Buddy id={buddy.id} size={size} style={style} />
 }
 
-/** Tom Tomato, the default buddy. Flat shape, closed content eyes, tiny mouth. Face is never filtered. */
-export function Tom({ size = 64, className = '' }) {
-  return (
-    <svg role="img" aria-label="Tom Tomato" viewBox="0 0 100 100" width={size} height={size} className={`shrink-0 ${className}`}>
-      <g filter="url(#rough)">
-        <ellipse cx="50" cy="57" rx="40" ry="35" fill="var(--tomato)" />
-        <ellipse cx="34" cy="44" rx="10" ry="6" fill="var(--clementine)" opacity="0.55" style={{ mixBlendMode: 'multiply' }} />
-        <path d="M50 26 L38 14 L46 24 L30 22 L45 30 L36 38 L50 31 L64 38 L55 30 L70 22 L54 24 L62 14 Z" fill="var(--olive)" />
-        <rect x="47.5" y="8" width="5" height="16" rx="2.5" fill="var(--olive)" />
-      </g>
-      <path d="M33 58 q5 5 10 0" stroke="var(--ink)" strokeWidth="3" fill="none" strokeLinecap="round" />
-      <path d="M57 58 q5 5 10 0" stroke="var(--ink)" strokeWidth="3" fill="none" strokeLinecap="round" />
-      <path d="M46 68 q4 3 8 0" stroke="var(--ink)" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for Tom's line on Results. */
-export function BuddyLine({ children, size = 64, text = 28 }) {
+/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
+export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)' }) {
   return (
     <div className="flex items-center gap-3">
-      <Tom size={size} />
-      <p className="font-display leading-[1.15] text-ink" style={{ fontSize: text }}>
+      <MyBuddy size={size} />
+      <p className="font-display leading-[1.15]" style={{ fontSize: text, color }}>
         {children}
       </p>
     </div>
@@ -113,10 +81,15 @@ export function BuddyLine({ children, size = 64, text = 28 }) {
 /** Small honest label shown whenever the data came from the local mock. */
 export function DemoBadge() {
   return (
-    <span className="label shrink-0 rounded-[4px] border-[1.5px] border-dashed border-muted bg-eggshell px-2 py-1 text-[10px] text-muted">
+    <span className="shrink-0 rounded-[4px] border-[1.5px] border-dashed border-muted bg-eggshell px-2 py-0.5 text-[12px] font-semibold text-muted">
       Demo data
     </span>
   )
+}
+
+/** Section label: Karla 600 14, sentence case, muted. */
+export function SectionLabel({ children, className = '' }) {
+  return <h3 className={`text-[14px] font-semibold text-muted ${className}`}>{children}</h3>
 }
 
 export function PrimaryButton({ children, className = '', ...rest }) {

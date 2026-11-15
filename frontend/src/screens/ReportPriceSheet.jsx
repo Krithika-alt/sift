@@ -63,7 +63,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
 
       <form onSubmit={send} className="mt-4 space-y-4">
         <label className="block">
-          <span className="label text-ink">Item</span>
+          <span className="text-[14px] font-semibold text-ink">Item</span>
           <select
             value={productId}
             onChange={(e) => {
@@ -82,7 +82,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
         </label>
 
         <label className="block">
-          <span className="label text-ink">Price</span>
+          <span className="text-[14px] font-semibold text-ink">Price</span>
           <div className="mt-1.5 flex min-h-[52px] items-center rounded-[14px] border-[1.5px] border-ink bg-receipt px-4">
             <span className="font-mono text-[20px] font-bold text-ink">$</span>
             <input
@@ -99,7 +99,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
         </label>
 
         <fieldset>
-          <legend className="label text-ink">In stock</legend>
+          <legend className="text-[14px] font-semibold text-ink">In stock</legend>
           <div role="radiogroup" className="mt-1.5 flex rounded-[12px] border-[1.5px] border-ink bg-receipt p-1">
             {[
               [true, 'Yes'],
