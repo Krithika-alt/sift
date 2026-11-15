@@ -203,7 +203,11 @@ function freshness(r, now) {
 
 function rank({ user_location, items, weights }) {
   const now = new Date()
-  const all = matchItems(items)
+  // items may mix plain strings and {text, quantity}
+  const specs = items.map((x) => (typeof x === 'string' ? { text: x, quantity: 1 } : { text: x.text, quantity: x.quantity ?? 1 }))
+  const qtyOf = {}
+  for (const sp of specs) qtyOf[norm(sp.text)] ??= Math.max(1, Math.round(sp.quantity))
+  const all = matchItems(specs.map((sp) => sp.text))
   const matched = all.filter(([, pid]) => pid)
   const unmatched = all.filter(([, pid]) => !pid).map(([q]) => q)
 
@@ -236,19 +240,21 @@ function rank({ user_location, items, weights }) {
     for (const [q, pid] of matched) {
       const r = latest.get(`${s.store_id}|${pid}`)
       const name = byId[pid]?.name ?? pid
+      const quantity = qtyOf[norm(q)] ?? 1
       if (r && r.in_stock) {
-        total += r.price
+        total += r.price * quantity
         inStockN += 1
         if ((r.unit_price ?? r.price) <= (bestUnit[pid] ?? Infinity) + 1e-9) prefN += 1
         breakdown.push({
-          query: q, name, price: round2(r.price), unit_price: fmtUnit(r), in_stock: true,
-          source: r.source, ...freshness(r, now),
+          query: q, name, price: round2(r.price), quantity, line_total: round2(r.price * quantity),
+          unit_price: fmtUnit(r), in_stock: true, source: r.source, ...freshness(r, now),
         })
       } else {
-        total += maxSeen[pid] ?? 0
+        const shelf = maxSeen[pid] ?? 0
+        total += shelf * quantity
         missing.push(q)
         breakdown.push({
-          query: q, name, price: round2(r ? r.price : maxSeen[pid] ?? 0),
+          query: q, name, price: round2(r ? r.price : shelf), quantity, line_total: round2(shelf * quantity),
           unit_price: r ? fmtUnit(r) : null, in_stock: false,
           source: r ? r.source : null, ...freshness(r, now),
         })
@@ -345,7 +351,7 @@ export function parseList({ text }) {
   return settle({
     items,
     unmatched: items.filter((i) => !i.matched).map((i) => i.text),
-    rank_items: items.map((i) => i.text),
+    rank_items: items.map((i) => ({ text: i.matched ? i.name : i.text, quantity: i.quantity })),
   })
 }
 

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askAgent, getProducts, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs } from './components/brand.jsx'
+import { StickerDefs } from './components/Sticker.jsx'
 import { DEFAULT_BUDGET, DEFAULT_LOCATION, DEFAULT_MODE, DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { loadPastBags, savePastBag, toItem } from './lib/bag.js'
+import { loadPastBags, savePastBag, setPastBagWinner, toItem, toRankItem } from './lib/bag.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
 import Bag from './screens/Bag.jsx'
 import Receipt from './screens/Receipt.jsx'
@@ -17,7 +18,8 @@ function rankBody(bag, mode) {
   const body = {
     user_location: { lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon },
     // Only rows with rank text: typed items and matched voice items (rank_items). NOT FOUND rows stay out.
-    items: bag.items.filter((i) => i.rank).map((i) => i.rank),
+    // Plain string for one, {text, quantity} for more than one (field names match the backend).
+    items: bag.items.filter((i) => i.rank).map(toRankItem),
     weights: MODES.find((m) => m.id === mode).weights,
     budget: bag.budget,
   }
@@ -54,6 +56,7 @@ export default function App() {
   const askId = useRef(0)
 
   const scrollRef = useRef(null)
+  const siftAt = useRef(null)
   const reqId = useRef(0)
 
   useEffect(() => {
@@ -79,7 +82,9 @@ export default function App() {
   }
 
   async function sift() {
-    setPastBags(savePastBag(bag))
+    const saved = savePastBag(bag)
+    setPastBags(saved.list)
+    siftAt.current = saved.at
     setSiftRanked(null)
     setSiftError('')
     setScreen('sifting')
@@ -95,6 +100,7 @@ export default function App() {
   }
 
   const finishSifting = useCallback(() => {
+    if (siftAt.current && siftRanked?.[0]) setPastBags(setPastBagWinner(siftAt.current, siftRanked[0]))
     setRanked(siftRanked)
     setScreen('results')
   }, [siftRanked])
@@ -156,6 +162,7 @@ export default function App() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-eggshell min-[440px]:bg-line">
       <SvgDefs />
+      <StickerDefs />
       {/* iPhone viewport 390 x 844. Full screen on a phone, framed on a desktop. */}
       <div className="relative h-dvh w-full overflow-hidden bg-eggshell min-[440px]:h-[844px] min-[440px]:w-[390px] min-[440px]:rounded-[48px] min-[440px]:border-[1.5px] min-[440px]:border-ink">
         <main ref={scrollRef} className="grain no-scrollbar h-full overflow-y-auto overscroll-contain">

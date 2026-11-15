@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { DemoBadge, PrimaryButton, Sticker, Tom } from '../components/brand.jsx'
-import { storeColor } from '../lib/stores.js'
+import { DemoBadge, PrimaryButton, TornEdge, Tom } from '../components/brand.jsx'
+import Sticker from '../components/Sticker.jsx'
+import { money, storeColor } from '../lib/stores.js'
 
-const TILTS = [-6, 5, -3, 7, -5, 4, -7, 3]
-const POP_MS = 260
+const LINE_MS = 250
 
 /**
  * Tom says "Checking shelves near you..." while POST /api/rank-stores runs.
- * Once stores come back they pop in one by one, then we move to Results.
+ * When stores come back, a receipt prints one line per store, 250 ms apart,
+ * then we move to Results.
  */
 export default function Sifting({ ranked, error, demo, onDone, onBack }) {
   const [shown, setShown] = useState(0)
@@ -16,47 +17,55 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
   useEffect(() => {
     if (!ranked) return
     if (shown < ranked.length) {
-      const t = setTimeout(() => setShown((n) => n + 1), POP_MS)
+      const t = setTimeout(() => setShown((n) => n + 1), LINE_MS)
       return () => clearTimeout(t)
     }
-    const t = setTimeout(onDone, 600)
+    const t = setTimeout(onDone, 500)
     return () => clearTimeout(t)
   }, [ranked, shown, onDone])
 
   return (
-    <div className="flex min-h-full flex-col items-center px-6 pb-10 pt-[calc(24px+env(safe-area-inset-top))]">
-      <div className="flex w-full justify-end">{demo && <DemoBadge />}</div>
+    <div className="flex min-h-full flex-col items-center px-5 pb-[34px] pt-14">
+      <div className="flex h-6 w-full justify-end">{demo && <DemoBadge />}</div>
 
-      <div className="mt-16 flex flex-col items-center text-center">
-        <Tom size={112} />
+      <div className="mt-6 flex flex-col items-center text-center">
+        <Tom size={96} />
         {error ? (
           <>
-            <p className="mt-6 font-display text-[26px] leading-tight">Couldn't check shelves.</p>
-            <p className="mt-2 max-w-[280px] text-[16px] text-muted">{error}</p>
+            <p className="mt-4 font-display text-[28px] leading-tight">Couldn't check shelves.</p>
+            <p className="mt-2 max-w-[280px] text-[17px] text-muted">{error}</p>
             <PrimaryButton className="mt-8 max-w-[260px]" onClick={onBack}>
               Back to my bag
             </PrimaryButton>
           </>
         ) : (
-          <p className="mt-6 font-display text-[28px] leading-tight">Checking shelves near you...</p>
+          <p className="mt-4 font-display text-[28px] leading-tight">Checking shelves near you...</p>
         )}
       </div>
 
       {!error && (
-        <ul aria-live="polite" className="mt-10 flex max-w-[340px] flex-wrap justify-center gap-x-2 gap-y-4">
-          {(ranked ?? []).slice(0, shown).map((s, i) => (
-            <motion.li
-              key={s.store_id}
-              initial={{ scale: 1.8, opacity: 0, rotate: TILTS[i % TILTS.length] * 2 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              transition={{ type: 'spring', damping: 14, stiffness: 380 }}
-            >
-              <Sticker color={storeColor(s.store_id)} tilt={TILTS[i % TILTS.length]}>
-                {s.name}
-              </Sticker>
-            </motion.li>
-          ))}
-        </ul>
+        <div className="mt-8 w-full max-w-[340px]">
+          <TornEdge color="var(--receipt)" seed={19} height={8} teeth={30} />
+          <ol aria-live="polite" className="grain min-h-[72px] bg-receipt px-4 py-3 font-mono text-[12px] text-ink">
+            {(ranked ?? []).slice(0, shown).map((s, i) => (
+              <motion.li
+                key={s.store_id}
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-2 py-1.5"
+              >
+                <Sticker shape="round" size="sm" color={storeColor(s.store_id)} tilt={i % 2 ? 5 : -5}>
+                  {i + 1}
+                </Sticker>
+                <span className="min-w-0 uppercase leading-tight">{s.name}</span>
+                <span className="dotted-leader mb-[3px] self-end !transform-none" aria-hidden="true" />
+                <span className="font-bold">{money(s.total_basket_price)}</span>
+              </motion.li>
+            ))}
+          </ol>
+          <TornEdge color="var(--receipt)" edge="bottom" seed={29} height={8} teeth={30} />
+        </div>
       )}
     </div>
   )

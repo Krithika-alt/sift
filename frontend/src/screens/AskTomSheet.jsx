@@ -1,7 +1,12 @@
 import Sheet from '../components/Sheet.jsx'
 import { PrimaryButton, Pulse, Tom } from '../components/brand.jsx'
 
-export const ASK_CHIPS = ['Why this store?', 'Cheaper swap?', 'Protein per dollar?']
+// Short chip labels; the full question goes to /api/ask-agent.
+export const ASK_CHIPS = [
+  { label: 'Why this store?', question: 'Why this store?' },
+  { label: 'Cheaper swap?', question: 'Cheaper swap?' },
+  { label: 'Protein per $?', question: 'Protein per dollar?' },
+]
 
 // Headlines that fit Tom's two lines in Darumadrop.
 const SHORT_HEADLINE = 70
@@ -70,7 +75,7 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
             </div>
             {rest && <p className="mt-4 text-[16px] leading-relaxed text-ink">{rest}</p>}
 
-            <div className="mt-5 rounded-xl bg-receipt px-4 py-3 font-mono">
+            <div className="mt-5 rounded-[4px] bg-receipt px-4 py-3 font-mono">
               {data.facts_used?.length > 0 && (
                 <ul className="mb-3">
                   {data.facts_used.map((f, i) => (

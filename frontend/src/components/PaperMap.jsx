@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { STICKER, storeColor } from '../lib/stores.js'
+import { storeColor } from '../lib/stores.js'
+import Sticker from './Sticker.jsx'
 
 // Torn-paper collage of the Madison isthmus. Approximate shapes, not map tiles:
 // the hand-made look matters more than exact streets.
@@ -83,12 +84,8 @@ export default function PaperMap({ ranked, user }) {
   const [ux, uy] = project(user.lat, user.lon)
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="block w-full"
-      role="img"
-      aria-label={`Map of ${ranked.length} stores near you, numbered by rank`}
-    >
+    <div className="relative" role="img" aria-label={`Map of ${ranked.length} stores near you, numbered by rank`}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" aria-hidden="true">
       <rect width={W} height={H} fill="var(--eggshell)" />
       <g filter="url(#rough-map)" style={{ mixBlendMode: 'multiply' }}>
         <path d={path(ARBORETUM)} fill="var(--pea)" opacity="0.28" stroke="var(--receipt)" strokeWidth="3" />
@@ -112,25 +109,20 @@ export default function PaperMap({ ranked, user }) {
       <circle cx={ux} cy={uy} r="11" fill="var(--receipt)" stroke="var(--ink)" strokeWidth="1.5" strokeDasharray="3 2.5" />
       <circle cx={ux} cy={uy} r="5.5" fill="var(--ink)" />
 
-      {/* Numbered store stickers (number = rank, so color is never the only signal) */}
-      {pins.map((p) => {
-        const c = STICKER[p.color]
-        return (
-          <g key={p.id} transform={`translate(${p.x},${p.y}) rotate(${p.n % 2 ? -6 : 5})`}>
-            <circle r="14" fill={c.bg} filter="url(#rough)" />
-            <text
-              textAnchor="middle"
-              dy="5"
-              fontFamily="Courier Prime, monospace"
-              fontWeight="700"
-              fontSize="15"
-              fill={c.fg}
-            >
-              {p.n}
-            </text>
-          </g>
-        )
-      })}
     </svg>
+
+      {/* Numbered store stickers (number = rank, so color is never the only signal) */}
+      {pins.map((p) => (
+        <span
+          key={p.id}
+          className="absolute"
+          style={{ left: `${(p.x / W) * 100}%`, top: `${(p.y / H) * 100}%`, transform: 'translate(-50%, -50%)' }}
+        >
+          <Sticker shape="round" size="sm" color={p.color} tilt={p.n % 2 ? -6 : 5}>
+            {p.n}
+          </Sticker>
+        </span>
+      ))}
+    </div>
   )
 }

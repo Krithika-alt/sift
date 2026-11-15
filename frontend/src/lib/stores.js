@@ -1,17 +1,5 @@
 // Helpers derived only from contract fields.
 
-// Sticker colors. Ink text on the light ones, eggshell text on the dark ones.
-export const STICKER = {
-  clementine: { bg: 'var(--clementine)', fg: 'var(--ink)' },
-  butter: { bg: 'var(--butter)', fg: 'var(--ink)' },
-  pea: { bg: 'var(--pea)', fg: 'var(--ink)' },
-  sardine: { bg: 'var(--sardine)', fg: 'var(--ink)' },
-  radish: { bg: 'var(--radish)', fg: 'var(--ink)' },
-  tomato: { bg: 'var(--tomato)', fg: 'var(--eggshell)' },
-  olive: { bg: 'var(--olive)', fg: 'var(--eggshell)' },
-  beet: { bg: 'var(--beet)', fg: 'var(--eggshell)' },
-}
-
 // Each store owns one sticker color (map pin, tags, receipt). Pea, olive and butter
 // stay free for BEST PICK, REAL PRICE and SAVES.
 const STORE_PALETTE = ['tomato', 'clementine', 'sardine', 'radish', 'beet', 'butter']
@@ -31,6 +19,10 @@ export function storeColor(storeId) {
 }
 
 export const money = (n) => `$${Number(n).toFixed(2)}`
+export const matchPct = (store) => `${Math.round(store.ml_rank_score * 100)}%`
+export const walkMinutes = (mi) => Math.max(1, Math.round(mi * 20))
+// line_total = price x quantity (older backends only send price)
+export const lineTotal = (item) => item.line_total ?? item.price * (item.quantity ?? 1)
 export const miles = (n) => `${Number(n).toFixed(1)} MI`
 
 // Real = anything observed (crowd or scraped); simulated is labeled as such.

@@ -71,7 +71,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
               const o = options.find((x) => x.product_id === e.target.value)
               if (o) setPrice(o.price.toFixed(2))
             }}
-            className="mt-1.5 min-h-[52px] w-full appearance-none rounded-2xl border-[1.5px] border-ink bg-receipt px-4 text-[17px] text-ink"
+            className="mt-1.5 min-h-[52px] w-full appearance-none rounded-[14px] border-[1.5px] border-ink bg-receipt px-4 text-[17px] text-ink"
           >
             {options.map((o) => (
               <option key={o.product_id} value={o.product_id}>
@@ -83,7 +83,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
 
         <label className="block">
           <span className="label text-ink">Price</span>
-          <div className="mt-1.5 flex min-h-[52px] items-center rounded-2xl border-[1.5px] border-ink bg-receipt px-4">
+          <div className="mt-1.5 flex min-h-[52px] items-center rounded-[14px] border-[1.5px] border-ink bg-receipt px-4">
             <span className="font-mono text-[20px] font-bold text-ink">$</span>
             <input
               type="number"
@@ -100,7 +100,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
 
         <fieldset>
           <legend className="label text-ink">In stock</legend>
-          <div role="radiogroup" className="mt-1.5 flex rounded-2xl border-[1.5px] border-ink bg-receipt p-1">
+          <div role="radiogroup" className="mt-1.5 flex rounded-[12px] border-[1.5px] border-ink bg-receipt p-1">
             {[
               [true, 'Yes'],
               [false, 'No'],
@@ -111,7 +111,7 @@ export default function ReportPriceSheet({ open, store, products, onClose, onSen
                 role="radio"
                 aria-checked={inStock === v}
                 onClick={() => setInStock(v)}
-                className={`min-h-[44px] flex-1 rounded-xl text-[16px] font-semibold ${inStock === v ? 'bg-ink text-eggshell' : 'text-ink'}`}
+                className={`min-h-[44px] flex-1 rounded-[9px] text-[17px] font-semibold ${inStock === v ? 'bg-ink text-eggshell' : 'text-ink'}`}
               >
                 {label}
               </button>

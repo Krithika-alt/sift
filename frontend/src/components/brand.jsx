@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
-import { STICKER } from '../lib/stores.js'
 
-// SVG filters used app-wide. Rough edges apply to shapes only, never to text.
+// Shape-only filters: Tom's body and the map pieces. Never applied to text.
+// Sticker edges come from <StickerDefs /> in Sticker.jsx.
 export function SvgDefs() {
   return (
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
       <defs>
         <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
           <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="3" />
-          <feDisplacementMap in="SourceGraphic" scale="3.5" />
+          <feDisplacementMap in="SourceGraphic" scale="3" />
         </filter>
         <filter id="rough-map" x="-5%" y="-5%" width="110%" height="110%">
           <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="8" />
@@ -16,46 +16,6 @@ export function SvgDefs() {
         </filter>
       </defs>
     </svg>
-  )
-}
-
-/**
- * Flat oval sticker, rough edge, Courier Prime bold caps, tilted 3-8 degrees.
- * dashed = the quiet outlined style used for SIMULATED and STALE.
- */
-export function Sticker({ color = 'pea', dashed = false, tilt = -4, size = 'md', className = '', style, children }) {
-  const c = STICKER[color] ?? STICKER.pea
-  const pad = size === 'sm' ? 'px-2.5 py-1 text-[10px] tracking-[1.5px]' : size === 'lg' ? 'px-4 py-2 text-[13px] tracking-[2px]' : 'px-3 py-1.5 text-[11px] tracking-[1.5px]'
-  return (
-    <span
-      className={`relative inline-flex select-none items-center justify-center whitespace-nowrap font-mono font-bold uppercase leading-none ${pad} ${className}`}
-      style={{ transform: `rotate(${tilt}deg)`, color: dashed ? 'var(--muted)' : c.fg, ...style }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute inset-0 rounded-[50%]"
-        style={{
-          background: dashed ? 'transparent' : c.bg,
-          border: dashed ? '1.5px dashed var(--muted)' : 'none',
-          filter: 'url(#rough)',
-        }}
-      />
-      <span className="relative">{children}</span>
-    </span>
-  )
-}
-
-/** Round numbered sticker in a store's color (map pins, runner-up rows). */
-export function NumberSticker({ n, color, tilt = -5, size = 30 }) {
-  const c = STICKER[color] ?? STICKER.pea
-  return (
-    <span
-      className="relative inline-flex shrink-0 items-center justify-center font-mono text-[14px] font-bold leading-none"
-      style={{ width: size, height: size, color: c.fg, transform: `rotate(${tilt}deg)` }}
-    >
-      <span aria-hidden="true" className="absolute inset-0 rounded-full" style={{ background: c.bg, filter: 'url(#rough)' }} />
-      <span className="relative">{n}</span>
-    </span>
   )
 }
 
@@ -77,10 +37,7 @@ function zigzagPoints(seed, teeth, height, flip) {
   return pts
 }
 
-/**
- * Torn paper edge. Place directly above (edge="top") or below (edge="bottom") a block
- * of the same color.
- */
+/** Torn paper edge. Place directly above (edge="top") or below (edge="bottom") a block of the same color. */
 export function TornEdge({ color = 'var(--kraft)', edge = 'top', height = 12, teeth = 46, seed = 7, className = '' }) {
   const d = useMemo(() => {
     const flip = edge === 'bottom'
@@ -103,7 +60,7 @@ export function TornEdge({ color = 'var(--kraft)', edge = 'top', height = 12, te
 
 /**
  * "sift" hand-lettered in Darumadrop One; the i is a short stem with a leaf as its dot.
- * In-app header: ink letters and olive leaf on eggshell. Minimum 28px tall.
+ * Ink letters and olive leaf on eggshell. No filters. Minimum 28px tall.
  */
 export function Wordmark({ size = 34, letter = 'var(--ink)', leaf = 'var(--olive)' }) {
   return (
@@ -124,7 +81,7 @@ export function Wordmark({ size = 34, letter = 'var(--ink)', leaf = 'var(--olive
   )
 }
 
-/** Tom Tomato, the default buddy. Flat shape, closed content eyes, tiny mouth. */
+/** Tom Tomato, the default buddy. Flat shape, closed content eyes, tiny mouth. Face is never filtered. */
 export function Tom({ size = 64, className = '' }) {
   return (
     <svg role="img" aria-label="Tom Tomato" viewBox="0 0 100 100" width={size} height={size} className={`shrink-0 ${className}`}>
@@ -141,12 +98,14 @@ export function Tom({ size = 64, className = '' }) {
   )
 }
 
-/** Buddy + one Darumadrop line. One buddy per screen, beside a headline. */
-export function BuddyLine({ children, size = 60 }) {
+/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for Tom's line on Results. */
+export function BuddyLine({ children, size = 64, text = 28 }) {
   return (
     <div className="flex items-center gap-3">
       <Tom size={size} />
-      <p className="font-display text-[24px] leading-[1.15] text-ink">{children}</p>
+      <p className="font-display leading-[1.15] text-ink" style={{ fontSize: text }}>
+        {children}
+      </p>
     </div>
   )
 }
@@ -154,7 +113,7 @@ export function BuddyLine({ children, size = 60 }) {
 /** Small honest label shown whenever the data came from the local mock. */
 export function DemoBadge() {
   return (
-    <span className="label rounded-md border-[1.5px] border-dashed border-muted px-2 py-1 text-[10px] tracking-[1.5px] text-muted">
+    <span className="label shrink-0 rounded-[4px] border-[1.5px] border-dashed border-muted bg-eggshell px-2 py-1 text-[10px] text-muted">
       Demo data
     </span>
   )
@@ -164,12 +123,17 @@ export function PrimaryButton({ children, className = '', ...rest }) {
   return (
     <button
       type="button"
-      className={`min-h-[52px] w-full rounded-2xl bg-ink px-5 text-[17px] font-semibold text-eggshell transition-transform active:scale-[0.98] disabled:opacity-50 ${className}`}
+      className={`min-h-[52px] w-full rounded-[14px] bg-ink px-5 text-[17px] font-semibold text-eggshell transition-transform active:scale-[0.98] disabled:opacity-50 ${className}`}
       {...rest}
     >
       {children}
     </button>
   )
+}
+
+/** Primary action pinned to the bottom of the screen, above the safe area. */
+export function BottomBar({ children }) {
+  return <div className="sticky bottom-0 z-10 mt-auto bg-eggshell px-5 pb-[34px] pt-3">{children}</div>
 }
 
 /** Slow three-dot pulse for "Listening..." and "Thinking..." */
