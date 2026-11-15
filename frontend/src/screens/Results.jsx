@@ -66,7 +66,7 @@ function BestCard({ store, ranked, ctx, onReceipt }) {
       type="button"
       onClick={onReceipt}
       aria-label={`Best pick: ${store.name}, ${money(store.total_basket_price)}. Open receipt.`}
-      className="relative block w-full rounded-[4px] border-[1.5px] border-line p-4 text-left"
+      className="relative block w-full rounded-[4px] border border-hair p-4 text-left"
       style={{ background: wash(storeColor(store.store_id), 14) }}
     >
       <span className="absolute -right-2.5 -top-3">
@@ -96,7 +96,7 @@ function RunnerRow({ store, n, ctx, onReceipt }) {
     <button
       type="button"
       onClick={onReceipt}
-      className="relative flex min-h-[52px] w-full items-center gap-3 border-b-[1.5px] border-dashed border-line py-2 text-left"
+      className="relative flex min-h-[52px] w-full items-center gap-3 border-b border-hair py-2 text-left"
       aria-label={`${n}. ${store.name}, ${money(store.total_basket_price)}, ${store.distance_miles} miles. Open receipt.`}
     >
       <Sticker shape="round" size="md" color={storeColor(store.store_id)} tilt={n % 2 ? -6 : 5}>

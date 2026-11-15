@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import Buddy from './Buddies.jsx'
+import { DirtPatch } from './Motifs.jsx'
 import { STICKER_COLORS } from './Sticker.jsx'
 import { useBuddy } from '../lib/profile.js'
 
@@ -73,39 +74,53 @@ export function MyBuddy({ size = 64, style }) {
   return <Buddy id={buddy.id} size={size} style={style} />
 }
 
-// A soft organic blob, drawn once; the sticker edge filter roughens it.
-const BLOB = 'M52 6 C76 4 96 20 97 45 C98 70 84 94 56 96 C30 98 6 84 4 58 C2 32 24 8 52 6Z'
-
 /**
- * The buddy on its color splotch: a blob about 1.4x the buddy, in the buddy's sticker color at 35%,
- * offset a little so it overlaps like a riso print. Takes the buddy's box; the blob may bleed out.
+ * The buddy standing in a small patch of soil (DirtPatch from Motifs.jsx, never redrawn): the
+ * patch is 1.6x the buddy's width and the buddy overlaps its upper half. The box is as wide as
+ * the patch, so nothing hangs past the 20px margins. The buddy idles (a 2px float) and tilts
+ * its head 6deg whenever `say` changes.
  */
-export function BuddySplotch({ size = 64 }) {
+export function BuddySplotch({ size = 64, say }) {
   const buddy = useBuddy()
-  const blob = Math.round(size * 1.4)
-  const off = (size - blob) / 2
+  const patch = Math.round(size * 1.6)
+  const patchH = patch * 0.42
   return (
-    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 100 100"
-        width={blob}
-        height={blob}
-        className="pointer-events-none absolute"
-        style={{ left: off + size * 0.08, top: off + size * 0.06, filter: 'url(#sift-sticker-edge)', overflow: 'visible' }}
-      >
-        <path d={BLOB} fill={STICKER_COLORS[buddy.sticker]?.bg ?? STICKER_COLORS.pea.bg} opacity="0.35" />
-      </svg>
-      <Buddy id={buddy.id} size={size} style={{ position: 'relative' }} />
+    <span className="relative inline-flex shrink-0 justify-center" style={{ width: patch, height: size + patchH / 2 }}>
+      <DirtPatch width={patch} style={{ position: 'absolute', left: 0, bottom: 0 }} />
+      <IdleBuddy id={buddy.id} size={size} say={say} />
     </span>
   )
 }
 
-/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
-export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)', splotch = false }) {
+/** Buddy idle: floats 2px up and down (4 s, ease-in-out, forever); a 6deg head tilt on a new line. */
+export function IdleBuddy({ id, size, say, style }) {
+  const reduce = useReducedMotion()
   return (
-    <div className={`flex items-center ${splotch ? 'gap-6' : 'gap-3'}`}>
-      {splotch ? <BuddySplotch size={size} /> : <MyBuddy size={size} />}
+    <motion.span
+      className="relative inline-flex"
+      animate={reduce ? undefined : { y: [0, -2, 0] }}
+      transition={{ duration: 4, ease: 'easeInOut', repeat: Infinity }}
+    >
+      <motion.span
+        key={say ?? ''}
+        className="inline-flex"
+        initial={reduce || say == null ? false : { rotate: 6 }}
+        animate={{ rotate: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        style={{ originY: 0.9 }}
+      >
+        <Buddy id={id} size={size} style={style} />
+      </motion.span>
+    </motion.span>
+  )
+}
+
+/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
+export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)', splotch = false, say }) {
+  const buddy = useBuddy()
+  return (
+    <div className="flex items-center gap-3">
+      {splotch ? <BuddySplotch size={size} say={say} /> : <IdleBuddy id={buddy.id} size={size} say={say} />}
       <p className="relative font-display leading-[1.15]" style={{ fontSize: text, color }}>
         {children}
       </p>
@@ -133,7 +148,7 @@ export function LandingSticker({ delay = 0, children, className = '' }) {
 /** Small honest label shown whenever the data came from the local mock. */
 export function DemoBadge() {
   return (
-    <span className="shrink-0 rounded-[4px] border-[1.5px] border-dashed border-muted bg-eggshell px-2 py-0.5 text-[12px] font-semibold text-muted">
+    <span className="shrink-0 rounded-[4px] border border-muted bg-eggshell px-2 py-0.5 text-[12px] font-semibold text-muted">
       Demo data
     </span>
   )

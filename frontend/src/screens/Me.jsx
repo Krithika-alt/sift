@@ -16,7 +16,7 @@ function Chevron() {
 
 function Row({ label, value, onClick, children }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-[52px] w-full items-center gap-3 border-b-[1.5px] border-dashed border-line px-4 py-2 text-left last:border-b-0">
+    <button type="button" onClick={onClick} className="flex min-h-[52px] w-full items-center gap-3 border-b border-hair px-4 py-2 text-left last:border-b-0">
       <span className="flex-1 text-[15px] font-semibold text-ink">{label}</span>
       {children ?? <span className="max-w-[55%] text-right text-[15px] text-muted">{value}</span>}
       <span className="text-muted">
@@ -76,13 +76,13 @@ export default function Me({ profile, setProfile, onChangeBuddy, initialEdit = n
       <section className="flex flex-col items-center text-center">
         <BuddySplotch size={112} />
         <h1 className="mt-4 font-display text-[28px] leading-tight text-ink">Hi, I'm {buddy.name}.</h1>
-        <button type="button" onClick={onChangeBuddy} className="min-h-11 px-2 text-[15px] font-semibold text-ink underline decoration-dashed underline-offset-4">
+        <button type="button" onClick={onChangeBuddy} className="min-h-11 px-2 text-[15px] font-semibold text-ink underline underline-offset-4">
           Change buddy
         </button>
       </section>
 
       <SectionLabel className="mt-6">Your details</SectionLabel>
-      <div className="mt-2 rounded-[4px] border-[1.5px] border-line bg-receipt">
+      <div className="mt-2 rounded-[4px] border border-hair bg-receipt">
         <Row label="Name" value={profile.name || 'Optional'} onClick={() => open('name', profile.name)} />
         <Row label="Home base" value={profile.home.label} onClick={() => open('home')} />
         <Row label="Diet" value={profile.diet.length ? profile.diet.join(', ') : 'None'} onClick={() => open('diet')} />

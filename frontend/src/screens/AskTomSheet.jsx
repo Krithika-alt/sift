@@ -95,14 +95,14 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
                   type="button"
                   aria-expanded={showFacts}
                   onClick={() => setShowFacts((v) => !v)}
-                  className="-ml-1 min-h-11 px-1 text-[14px] font-semibold text-ink underline decoration-dashed underline-offset-4"
+                  className="-ml-1 min-h-11 px-1 text-[14px] font-semibold text-ink underline underline-offset-4"
                 >
                   {showFacts ? 'Hide the numbers' : 'Show the numbers'}
                 </button>
                 {showFacts && (
                   <ul className="mt-1 rounded-[4px] bg-receipt px-4 py-2 font-mono">
                     {data.facts_used.map((f, i) => (
-                      <li key={i} className="border-b-[1.5px] border-dashed border-line py-1.5 text-[12px] leading-snug text-ink last:border-b-0">
+                      <li key={i} className="border-b border-hair py-1.5 text-[12px] leading-snug text-ink last:border-b-0">
                         {f}
                       </li>
                     ))}

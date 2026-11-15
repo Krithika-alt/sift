@@ -181,7 +181,7 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
         <button
           type="button"
           onClick={onReport}
-          className="mx-auto mt-1 block min-h-11 px-4 text-[17px] font-semibold text-ink underline decoration-dashed underline-offset-4"
+          className="mx-auto mt-1 block min-h-11 px-4 text-[17px] font-semibold text-ink underline underline-offset-4"
         >
           Saw a different price?
         </button>

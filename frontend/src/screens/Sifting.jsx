@@ -37,7 +37,7 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
         <Wordmark size={120} onSoil />
         <span className="flex w-20 justify-end">
           {demo && (
-            <span className="rounded-[4px] border-[1.5px] border-dashed border-eggshell/70 px-2 py-0.5 text-[12px] font-semibold text-eggshell">
+            <span className="rounded-[4px] border border-eggshell/70 px-2 py-0.5 text-[12px] font-semibold text-eggshell">
               Demo data
             </span>
           )}
