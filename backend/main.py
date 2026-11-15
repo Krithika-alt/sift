@@ -51,6 +51,8 @@ class RankRequest(BaseModel):
 
 class ParseListRequest(BaseModel):
     text: str
+    # other transcripts the speech engine considered (SpeechRecognition maxAlternatives)
+    alternatives: list[str] = []
 
 
 class ReportPriceRequest(BaseModel):
@@ -89,7 +91,7 @@ def parse_list_endpoint(req: ParseListRequest):
     """Split a spoken/typed list ("milk, eggs and greek yogurt") into separate matched items.
     The frontend sends the speech-to-text transcript here, shows the items, then passes
     `rank_items` straight to /api/rank-stores."""
-    return parse_list(req.text, get_data_source().products())
+    return parse_list(req.text, get_data_source().products(), req.alternatives)
 
 
 @app.post("/api/rank-stores")
