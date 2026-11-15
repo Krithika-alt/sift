@@ -59,8 +59,15 @@ function Stepper({ item, onChange }) {
       <IconButton label={`Fewer ${item.label}`} disabled={item.quantity <= 1} onClick={() => onChange(item.quantity - 1)}>
         <span className="flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-ink text-[16px]">−</span>
       </IconButton>
-      <span className="w-5 text-center text-[16px] font-bold text-ink" aria-live="polite">
-        {item.quantity}
+      {/* more than one: the number sits in a small butter round sticker */}
+      <span className="flex w-7 justify-center text-[16px] font-bold text-ink" aria-live="polite">
+        {item.quantity > 1 ? (
+          <Sticker shape="round" size="sm" color="butter" tilt={-5}>
+            {item.quantity}
+          </Sticker>
+        ) : (
+          item.quantity
+        )}
       </span>
       <IconButton label={`More ${item.label}`} disabled={item.quantity >= MAX_QTY} onClick={() => onChange(item.quantity + 1)}>
         <span className="flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-ink text-[16px]">+</span>
@@ -164,7 +171,7 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
 
   // Need stickers: budget first, then preferences. At most two stickers on the bag.
   const needs = [
-    ...(bag.budgetSet ? [{ text: `Under $${budget}`, budget: true }] : []),
+    ...(bag.budgetSet ? [{ text: `$${budget} budget`, budget: true }] : []),
     ...bag.preferences.map((p) => ({ text: p })),
   ]
   const shownNeeds = needs.slice(-2)
@@ -182,7 +189,7 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
         </header>
 
         <div className="mt-6">
-          <BuddyLine size={64} text={28}>
+          <BuddyLine size={64} text={28} splotch>
             {speech.listening ? (
               <Pulse>Listening</Pulse>
             ) : parsing ? (
@@ -214,7 +221,7 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
                     aria-label={`Remove need: ${need.text}`}
                     className="flex min-h-[44px] items-center px-1"
                   >
-                    <Sticker color={need.budget ? 'clementine' : i === 0 ? 'radish' : 'sardine'} tilt={NEED_TILTS[i]} size="sm">
+                    <Sticker color={need.budget ? 'butter' : 'pea'} tilt={NEED_TILTS[i]} size="sm">
                       {need.text} ×
                     </Sticker>
                   </button>
@@ -362,9 +369,9 @@ export default function Bag({ bag, setBag, budget, products, pastBags, onLoadPas
         {pastBags.length > 0 && (
           <section aria-label="Past bags" className="mt-6">
             <SectionLabel>Past bags</SectionLabel>
-            <div className="no-scrollbar -mx-5 mt-1 flex gap-3 overflow-x-auto px-5 pb-1">
-              {pastBags.map((pb) => (
-                <PastBagCard key={pb.at} pb={pb} onOpen={() => onLoadPast(pb)} onRename={(name) => onRenamePast(pb.at, name)} />
+            <div className="no-scrollbar -mx-5 mt-2 flex gap-3 overflow-x-auto px-5 pb-1">
+              {pastBags.map((pb, i) => (
+                <PastBagCard key={pb.at} pb={pb} index={i} onOpen={() => onLoadPast(pb)} onRename={(name) => onRenamePast(pb.at, name)} />
               ))}
               <span aria-hidden="true" className="w-2 shrink-0" />
             </div>

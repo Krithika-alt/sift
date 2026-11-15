@@ -30,7 +30,8 @@ Principles: one element, one job (lettering = logo, stickers = labels on content
 Colors (CSS tokens):
 - --eggshell #F7F1E3 page background (faint grain)
 - --receipt #FFFCF5 cards and receipts
-- --ink #2B1D18 all text, primary buttons, selected segment
+- --ink #2B1D18 all text, selected segment
+- Primary buttons are soil #4A2E22 with eggshell text
 - --muted #6E5A4E secondary text
 - --line #DCCDB2 dashed and dotted rules, card borders
 - --kraft #D9BE90 the bag (list card) and bottom sheets only
@@ -45,11 +46,11 @@ Fonts (Google Fonts, nothing else):
 - Courier Prime: only money and the receipt. Prices and totals anywhere (700), the whole receipt, and sticker text. Never for labels, distances or counts outside the receipt.
 - Letter-spaced uppercase only inside stickers and on the receipt.
 
-Logo, stickers and buddies in code: always use src/components/Wordmark.jsx, Sticker.jsx and Buddies.jsx. Never redraw them. Tabs, Map, Saved and Me are specified in frontend/TABS.md.
+Logo, stickers, buddies and tab icons in code: always use src/components/Wordmark.jsx, Sticker.jsx, Buddies.jsx and TabIcons.jsx. Never redraw them. Tabs, Map, Saved and Me are specified in frontend/TABS.md, as revised by POLISH-4.md (the Map tab only shows nearby stores with directions).
 
 Text is never distorted. Rough or displacement filters apply only to shapes (sticker ovals, torn edges, map pieces), never to text or wordmark letters.
 
-Texture: riso style. Flat fills with fine pale flecks and soft overlapping shapes (multiply where they overlap). Soil gets a fine film grain (SVG feTurbulence, baseFrequency about 1.1, light and dark specks at low opacity), never coarse pixel noise. Paper surfaces get a faint grain. Kraft has a torn zigzag top edge; receipts have zigzag torn ends.
+Texture: riso style. Flat fills with fine pale flecks and soft overlapping shapes (multiply where they overlap). Soil gets a fine film grain (SVG feTurbulence, baseFrequency about 1.1, light and dark specks at low opacity), never coarse pixel noise. Paper surfaces get a faint grain. Torn zigzag edges appear only on the bag card (top) and the receipt (both ends). Kraft is only the bag card. Sheets are eggshell with a 20px top radius.
 
 Logo: "sift" hand-lettered in Darumadrop One; the i is a short stem with a leaf as its dot. Primary: eggshell letters and #A6C566 leaf on soil. In-app header: ink letters and olive leaf on eggshell. Never inside a sticker, box or badge. No standalone leaf symbol. Minimum 28px tall.
 
@@ -74,7 +75,7 @@ Core loop (this is the demo): Splash -> Pick your buddy (first launch only) -> B
    - Primary button "Sift my list". Below it, a row of past bags.
 4. Sifting: Tom says "Checking shelves near you..."; store stickers pop in one by one while POST /api/rank-stores runs.
 5. Results: torn-paper map on top with numbered store stickers and the user dot; eggshell sheet with a torn top; segmented control Cheapest / [Buddy]'s pick / Closest, e.g. "Tom's pick" (default; re-calls rank-stores with weights Cheapest 0.85/0.1/0.05, [Buddy]'s pick 0.6/0.3/0.1, Closest 0.25/0.7/0.05 for price/distance/preference); Tom's one-line reason in Darumadrop; best-pick card (store, total, distance, items found, "SAVES $X VS NEARBY", "SEE RECEIPT") with a BEST PICK sticker on the corner; runner-ups as rows with store-color number stickers. Re-sorting animates. Under Tom, 3 question chips open Ask Tom.
-6. Receipt: only Courier Prime on the receipt. Zigzag torn ends; centered store, address, time; dashed rules; each line item with dotted leader, price, an R marker if real, and price_age in muted text (STALE sticker if stale); bold TOTAL; savings vs nearby average; walk distance; "N REAL · N SIMULATED"; a barcode; "THANKS FOR SIFTING". Tom speaks above the receipt, never on it. Primary button "Walk there" (opens Apple Maps); link "Saw a different price?".
+6. Receipt: only Courier Prime on the receipt. Zigzag torn ends; centered store, address, time; dashed rules; each line item with dotted leader, price, an R marker if real, and price_age in muted text (STALE sticker if stale); bold TOTAL; savings vs nearby average; walk distance; "N REAL · N SIMULATED"; a barcode; "THANKS FOR SIFTING". Tom speaks above the receipt, never on it. Primary button "Get directions" (opens Maps with no travel mode so the user picks walk, drive or transit); link "Saw a different price?".
 
 Branches:
 - A. Saw a different price?: kraft bottom sheet (item, price, in stock, Send) -> POST /api/report-price -> rank-stores again; the store that moved gets a sticker slap and slides up. This is the demo's best moment; test it early.

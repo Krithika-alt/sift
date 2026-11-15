@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BuddyLine, TornEdge } from '../components/brand.jsx'
+import { BuddyLine } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
 import Wordmark from '../components/Wordmark.jsx'
 import { money, storeColor } from '../lib/stores.js'
@@ -45,7 +45,7 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
       </div>
 
       <div className="mt-6">
-        <BuddyLine size={96} text={28} color="var(--eggshell)">
+        <BuddyLine size={96} text={28} color="var(--eggshell)" splotch>
           {error
             ? "Couldn't reach the shelves."
             : ranked
@@ -67,8 +67,7 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
         </>
       ) : (
         <div className="mt-8 w-[300px]">
-          <TornEdge color="var(--receipt)" seed={19} height={8} teeth={30} />
-          <ol aria-live="polite" className="grain min-h-[64px] bg-receipt px-3 py-2 font-mono text-ink">
+          <ol aria-live="polite" className="grain min-h-[64px] rounded-[4px] bg-receipt px-4 py-2 text-ink">
             {lines.slice(0, shown).map((s) => (
               <motion.li
                 key={s.store_id}
@@ -80,9 +79,9 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
                 <Sticker shape="round" size="sm" color={storeColor(s.store_id)} tilt={s.rank % 2 ? 5 : -5}>
                   {s.rank}
                 </Sticker>
-                <span className="min-w-0 text-[14px] uppercase leading-tight">{s.name}</span>
+                <span className="min-w-0 text-[15px] font-semibold leading-tight">{s.name}</span>
                 <span className="dotted-leader mb-[3px] self-end !transform-none" aria-hidden="true" />
-                <span className="text-[14px] font-bold">{money(s.total_basket_price)}</span>
+                <span className="font-mono text-[14px] font-bold">{money(s.total_basket_price)}</span>
                 {s.rank === 1 && (
                   <motion.span
                     className="absolute -top-3 right-14"
@@ -98,7 +97,6 @@ export default function Sifting({ ranked, error, demo, onDone, onBack }) {
               </motion.li>
             ))}
           </ol>
-          <TornEdge color="var(--receipt)" edge="bottom" seed={29} height={8} teeth={30} />
         </div>
       )}
     </div>

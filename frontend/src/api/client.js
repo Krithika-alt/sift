@@ -88,3 +88,12 @@ export async function health() {
     return false
   }
 }
+
+/**
+ * Stores for the Map tab: the store list from the last rank-stores response if there is one,
+ * otherwise the mock store list. No request; sorted by distance.
+ */
+export function nearbyStores(lastRanked, user_location) {
+  const list = lastRanked?.length ? lastRanked : mock.nearbyStores(user_location)
+  return [...list].sort((a, b) => a.distance_miles - b.distance_miles)
+}

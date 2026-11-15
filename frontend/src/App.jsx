@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { askAgent, getProducts, health, rankStores, reportPrice } from './api/client.js'
+import { askAgent, getProducts, health, nearbyStores, rankStores, reportPrice } from './api/client.js'
 import { SvgDefs } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
 import TabBar from './components/TabBar.jsx'
 import Wordmark from './components/Wordmark.jsx'
 import { DEMO_BASKET, DEMO_MODE, MODES } from './config.js'
-import { isRankable, itemKey, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
+import { isRankable, loadPastBags, removePastBag, renamePastBag, savePastBag, toItem, toRankItem } from './lib/bag.js'
 import { BuddyContext, buddyOf, loadProfile, saveProfile } from './lib/profile.js'
 import { savingsVsNearby } from './lib/stores.js'
 import AskTomSheet from './screens/AskTomSheet.jsx'
@@ -24,8 +24,6 @@ const SLAP_MS = 3200
 const SLIDE_DELAY_MS = 450
 const SPLASH_MS = 1000
 const TAB_SCREENS = ['map', 'saved', 'me']
-
-const bagSig = (items) => items.filter(isRankable).map((i) => `${itemKey(i)}x${i.quantity ?? 1}`).sort().join('|')
 
 function rankBody(items, mode, budget, preferences, home) {
   const body = {
@@ -62,8 +60,6 @@ export default function App() {
   const [siftRanked, setSiftRanked] = useState(null)
   const [siftError, setSiftError] = useState('')
   const [ranked, setRanked] = useState([])
-  const [rankedSig, setRankedSig] = useState(null)
-  const [mapRanked, setMapRanked] = useState(null)
   const [siftedAt, setSiftedAt] = useState(() => new Date())
   const [busy, setBusy] = useState(false)
 
@@ -125,7 +121,6 @@ export default function App() {
       setDemo(res.demo)
       setSiftedAt(new Date())
       setSiftRanked(res.ranked)
-      setRankedSig(bagSig(bag.items))
       const best = res.ranked[0]
       if (best) {
         const winner = { store_id: best.store_id, total: best.total_basket_price, saved: Math.max(0, savingsVsNearby(best, res.ranked)) }
@@ -193,19 +188,6 @@ export default function App() {
     }
   }
 
-  // Map tab: use the last ranking; if none yet, rank the current bag (or the demo basket) once.
-  const bagEmpty = !bag.items.some(isRankable)
-  useEffect(() => {
-    if (screen !== 'map' || ranked.length || mapRanked) return
-    const items = bagEmpty ? DEMO_BASKET : bag.items
-    rankStores(rankBody(items, mode, budget, preferences, home))
-      .then(({ data, demo: wasDemo }) => {
-        setMapRanked(data.ranked_stores)
-        setDemo(wasDemo)
-      })
-      .catch(() => {})
-  }, [screen, ranked.length, mapRanked, bagEmpty, bag.items, mode, budget, preferences, home])
-
   function openReceipt(id, from) {
     setReceiptId(id)
     setReceiptFrom(from)
@@ -224,11 +206,12 @@ export default function App() {
   const receiptStore = ranked.find((s) => s.store_id === receiptId)
   const tab = TAB_SCREENS.includes(screen) ? screen : 'bag'
   const showTabs = phase === 'app' && !pickerOpen && !['sifting', 'receipt'].includes(screen) && !askOpen && !reportOpen
-  const mapStores = ranked.length ? ranked : mapRanked ?? []
+  // Map tab: stores only, no bag. Last rank response's store list, else the mock list; by distance.
+  const mapStores = useMemo(() => nearbyStores(ranked, home), [ranked, home])
 
   return (
     <BuddyContext.Provider value={buddy}>
-      <div className="flex min-h-dvh items-center justify-center gap-16 bg-eggshell min-[500px]:grain min-[500px]:bg-kraft">
+      <div className="flex min-h-dvh items-center justify-center gap-16 bg-eggshell min-[500px]:grain">
         <SvgDefs />
         <StickerDefs />
         {/* Laptop presentation: wordmark and line to the left of the phone */}
@@ -292,14 +275,7 @@ export default function App() {
                   />
                 )}
                 {screen === 'map' && (
-                  <MapTab
-                    ranked={mapStores}
-                    user={home}
-                    bagEmpty={bagEmpty}
-                    canReceipt={ranked.length > 0 && rankedSig === bagSig(bag.items)}
-                    onReceipt={(id) => openReceipt(id, 'map')}
-                    demo={demo}
-                  />
+                  <MapTab stores={mapStores} user={home} demo={demo} />
                 )}
                 {screen === 'saved' && (
                   <Saved

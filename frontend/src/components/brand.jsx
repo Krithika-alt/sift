@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import Buddy from './Buddies.jsx'
+import { STICKER_COLORS } from './Sticker.jsx'
 import { useBuddy } from '../lib/profile.js'
 
 // Shape-only filters: paper scraps and map pieces. Never applied to text.
@@ -60,18 +61,51 @@ export function TornEdge({ color = 'var(--kraft)', edge = 'top', height = 12, te
   )
 }
 
+/** A sticker color (Sticker.jsx palette) mixed into a paper color: flat, never a gradient. */
+export const wash = (color, pct, paper = 'var(--receipt)') =>
+  `color-mix(in srgb, ${STICKER_COLORS[color]?.bg ?? color} ${pct}%, ${paper})`
+export const tint = (color, pct) => `color-mix(in srgb, ${STICKER_COLORS[color]?.bg ?? color} ${pct}%, transparent)`
+
 /** The chosen buddy (Buddies.jsx, never redrawn). */
 export function MyBuddy({ size = 64, style }) {
   const buddy = useBuddy()
   return <Buddy id={buddy.id} size={size} style={style} />
 }
 
-/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
-export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)' }) {
+// A soft organic blob, drawn once; the sticker edge filter roughens it.
+const BLOB = 'M52 6 C76 4 96 20 97 45 C98 70 84 94 56 96 C30 98 6 84 4 58 C2 32 24 8 52 6Z'
+
+/**
+ * The buddy on its color splotch: a blob about 1.4x the buddy, in the buddy's sticker color at 35%,
+ * offset a little so it overlaps like a riso print. Takes the buddy's box; the blob may bleed out.
+ */
+export function BuddySplotch({ size = 64 }) {
+  const buddy = useBuddy()
+  const blob = Math.round(size * 1.4)
+  const off = (size - blob) / 2
   return (
-    <div className="flex items-center gap-3">
-      <MyBuddy size={size} />
-      <p className="font-display leading-[1.15]" style={{ fontSize: text, color }}>
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 100 100"
+        width={blob}
+        height={blob}
+        className="pointer-events-none absolute"
+        style={{ left: off + size * 0.08, top: off + size * 0.06, filter: 'url(#sift-sticker-edge)', overflow: 'visible' }}
+      >
+        <path d={BLOB} fill={STICKER_COLORS[buddy.sticker]?.bg ?? STICKER_COLORS.pea.bg} opacity="0.35" />
+      </svg>
+      <Buddy id={buddy.id} size={size} style={{ position: 'relative' }} />
+    </span>
+  )
+}
+
+/** Buddy + one Darumadrop line, gap 12. 28px for screen headlines, 22px for the line on Results. */
+export function BuddyLine({ children, size = 64, text = 28, color = 'var(--ink)', splotch = false }) {
+  return (
+    <div className={`flex items-center ${splotch ? 'gap-6' : 'gap-3'}`}>
+      {splotch ? <BuddySplotch size={size} /> : <MyBuddy size={size} />}
+      <p className="relative font-display leading-[1.15]" style={{ fontSize: text, color }}>
         {children}
       </p>
     </div>

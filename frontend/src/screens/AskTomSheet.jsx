@@ -3,14 +3,18 @@ import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { MyBuddy, PrimaryButton, Pulse } from '../components/brand.jsx'
 import { useBuddy } from '../lib/profile.js'
+import { storeColor } from '../lib/stores.js'
 
-/** Short chip labels; the full question with real names goes to /api/ask-agent. */
+/**
+ * Short chip labels; the full question with real names goes to /api/ask-agent.
+ * dot: the store's color for store questions, pea for swaps, butter for protein.
+ */
 export const askChips = (best) => {
   const store = best?.name ?? 'this store'
   return [
-    { label: 'Why this store?', question: `Why did ${store} win?` },
-    { label: 'Cheaper swap?', question: `What can I swap to save money at ${store}?` },
-    { label: 'Protein per $?', question: 'Which store has the cheapest protein per dollar?' },
+    { label: 'Why this store?', question: `Why did ${store} win?`, dot: best ? storeColor(best.store_id) : 'pea' },
+    { label: 'Cheaper swap?', question: `What can I swap to save money at ${store}?`, dot: 'pea' },
+    { label: 'Protein per $?', question: 'Which store has the cheapest protein per dollar?', dot: 'butter' },
   ]
 }
 
@@ -98,7 +102,7 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
                 {showFacts && (
                   <ul className="mt-1 rounded-[4px] bg-receipt px-4 py-2 font-mono">
                     {data.facts_used.map((f, i) => (
-                      <li key={i} className="border-b-[1.5px] border-dashed border-line py-1.5 text-[12px] uppercase leading-snug text-ink last:border-b-0">
+                      <li key={i} className="border-b-[1.5px] border-dashed border-line py-1.5 text-[12px] leading-snug text-ink last:border-b-0">
                         {f}
                       </li>
                     ))}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { TornEdge } from './brand.jsx'
+import { wash } from './brand.jsx'
 import Sticker from './Sticker.jsx'
 import { autoName, toItem } from '../lib/bag.js'
 import { money, storeColor } from '../lib/stores.js'
@@ -12,11 +12,15 @@ function PencilIcon() {
   )
 }
 
+// Each card gets its own pop color at 22%, rotating through these.
+const TONES = ['pea', 'butter', 'sardine', 'radish', 'clementine']
+
 /**
- * Small kraft bag card: name (Karla 700 16), item count, the winning store's round sticker and a
- * butter SAVED sticker overlapping the top-right edge. Tap loads it; the pencil renames inline.
+ * Past bag card on a pop-color wash: name (Karla 700 16), item count (Karla 13 muted), the winning
+ * store's round sticker and a butter SAVED sticker overlapping the top-right corner (10px max).
+ * Tap loads it; the pencil renames inline.
  */
-export default function PastBagCard({ pb, onOpen, onRename, onRemove, width = 156 }) {
+export default function PastBagCard({ pb, index = 0, onOpen, onRename, onRemove, width = 156 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const input = useRef(null)
@@ -33,9 +37,9 @@ export default function PastBagCard({ pb, onOpen, onRename, onRemove, width = 15
   }
 
   return (
-    <div className="relative shrink-0 pt-2" style={{ width }}>
+    <div className="relative shrink-0 pt-2.5" style={{ width }}>
       {pb.winner && (
-        <span className="pointer-events-none absolute -right-1 top-0 z-10 flex items-center">
+        <span className="pointer-events-none absolute -right-2 top-0 z-10 flex items-center">
           <Sticker shape="round" size="sm" color={storeColor(pb.winner.store_id)} tilt={-7}>
             1
           </Sticker>
@@ -46,8 +50,7 @@ export default function PastBagCard({ pb, onOpen, onRename, onRemove, width = 15
           )}
         </span>
       )}
-      <TornEdge color="var(--kraft)" seed={(pb.at % 97) + 3} height={8} teeth={14} />
-      <div className="grain relative flex min-h-[104px] flex-col bg-kraft p-3">
+      <div className="grain relative flex min-h-[112px] flex-col rounded-[4px] p-4" style={{ background: wash(TONES[index % TONES.length], 22, 'var(--eggshell)') }}>
         {editing ? (
           <form
             onSubmit={(e) => {
@@ -72,10 +75,10 @@ export default function PastBagCard({ pb, onOpen, onRename, onRemove, width = 15
           <>
             {/* the whole card loads the bag */}
             <button type="button" onClick={onOpen} className="absolute inset-0" aria-label={`Load ${name}, ${items.length} items`} />
-            <span className="pointer-events-none mt-3 line-clamp-2 pr-6 text-[16px] font-bold leading-tight text-ink">{name}</span>
+            <span className="pointer-events-none mt-2 line-clamp-2 pr-6 text-[16px] font-bold leading-tight text-ink">{name}</span>
           </>
         )}
-        <span className="pointer-events-none mt-auto pt-2 text-[13px] text-ink/80">
+        <span className="pointer-events-none mt-auto pt-2 text-[13px] text-muted">
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
         {!editing && (

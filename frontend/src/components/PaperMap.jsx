@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { storeColor } from '../lib/stores.js'
 import Sticker from './Sticker.jsx'
 
@@ -109,7 +110,7 @@ function Scrap({ x, y, H, tilt, size = 12, children }) {
  * stores: ranked_stores (pins numbered by rank). sizes: { [store_id]: 'sm' | 'md' | 'lg' }.
  * height: map height in px at 390 wide. focusY: where the map center sits vertically.
  */
-export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelect, height = 270, focusY, full = false, className = '' }) {
+export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelect, height = 270, focusY, full = false, pan = false, className = '' }) {
   const H = height
   const cy = focusY ?? H / 2
   const project = useMemo(
@@ -144,10 +145,22 @@ export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelec
   ].sort((a, b) => (nearest ? Math.hypot(b[0] - nearest.x, b[1] - nearest.y) - Math.hypot(a[0] - nearest.x, a[1] - nearest.y) : 0))
   const you = youSpots.find(([x, y]) => labelFits(scrapBox('You', x, y, 12), pins, H)) ?? youSpots[0]
 
+  // Pan: slide the whole collage so the selected pin sits at the map's focus point (kept gentle).
+  const sel = pan && pins.find((p) => p.id === selectedId)
+  const clamp = (v, m) => Math.max(-m, Math.min(m, v))
+  const dx = sel ? clamp(W / 2 - sel.x, W * 0.35) : 0
+  const dy = sel ? clamp(cy - sel.y, H * 0.25) : 0
+
   return (
-    <div className={`relative w-full overflow-hidden ${className}`} style={{ aspectRatio: `${W} / ${H}` }} role="img" aria-label={`Map of ${stores.length} stores near you, numbered by rank`}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 block h-full w-full" aria-hidden="true">
-        <rect width={W} height={H} fill="var(--eggshell)" />
+    <div className={`relative w-full overflow-hidden bg-eggshell ${className}`} style={{ aspectRatio: `${W} / ${H}` }} role="img" aria-label={`Map of ${stores.length} stores near you`}>
+      <motion.div
+        className="absolute inset-0"
+        initial={false}
+        animate={{ x: `${(dx / W) * 100}%`, y: `${(dy / H) * 100}%` }}
+        transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+      >
+      <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 block h-full w-full" style={{ overflow: 'visible' }} aria-hidden="true">
+        <rect x={-W} y={-H} width={W * 3} height={H * 3} fill="var(--eggshell)" />
         <g filter="url(#rough-map)" style={{ mixBlendMode: 'multiply' }}>
           <path d={path(ARBORETUM)} fill="var(--pea)" opacity="0.28" stroke="var(--receipt)" strokeWidth="3" />
           {PARKS.map((p, i) => (
@@ -209,6 +222,7 @@ export default function PaperMap({ stores, user, sizes = {}, selectedId, onSelec
           </span>
         )
       })}
+      </motion.div>
     </div>
   )
 }

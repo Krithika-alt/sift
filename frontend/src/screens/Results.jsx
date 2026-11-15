@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { BuddyLine, DemoBadge, SectionLabel, TornEdge } from '../components/brand.jsx'
+import { BuddyLine, DemoBadge, SectionLabel, wash } from '../components/brand.jsx'
 import PaperMap from '../components/PaperMap.jsx'
-import Sticker from '../components/Sticker.jsx'
+import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
 import { itemsFound, matchPct, money, priceCounts, reasonLine, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
@@ -66,9 +66,10 @@ function BestCard({ store, ranked, ctx, onReceipt }) {
       type="button"
       onClick={onReceipt}
       aria-label={`Best pick: ${store.name}, ${money(store.total_basket_price)}. Open receipt.`}
-      className="relative block w-full rounded-[4px] border-[1.5px] border-line bg-receipt p-4 pt-5 text-left"
+      className="relative block w-full rounded-[4px] border-[1.5px] border-line p-4 text-left"
+      style={{ background: wash(storeColor(store.store_id), 14) }}
     >
-      <span className="absolute -right-2 -top-3">
+      <span className="absolute -right-2.5 -top-3">
         <Sticker color="pea" size="md" tilt={6}>
           Best pick
         </Sticker>
@@ -95,7 +96,7 @@ function RunnerRow({ store, n, ctx, onReceipt }) {
     <button
       type="button"
       onClick={onReceipt}
-      className="relative flex min-h-14 w-full items-center gap-3 border-b-[1.5px] border-dashed border-line py-2 text-left"
+      className="relative flex min-h-[52px] w-full items-center gap-3 border-b-[1.5px] border-dashed border-line py-2 text-left"
       aria-label={`${n}. ${store.name}, ${money(store.total_basket_price)}, ${store.distance_miles} miles. Open receipt.`}
     >
       <Sticker shape="round" size="md" color={storeColor(store.store_id)} tilt={n % 2 ? -6 : 5}>
@@ -125,7 +126,7 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
     <div className="min-h-full pb-6">
       <div className="relative">
         <PaperMap stores={ranked} user={user} sizes={Object.fromEntries(ranked.map((s) => [s.store_id, 'md']))} height={300} focusY={170} />
-        <div className="pointer-events-none absolute inset-x-0 top-12 z-10 flex items-center justify-between px-5">
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex items-center justify-between px-5">
           <button
             type="button"
             onClick={onEditBag}
@@ -140,10 +141,9 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
         </div>
       </div>
 
-      <div className="relative z-10 -mt-6">
-        <TornEdge color="var(--eggshell)" seed={5} height={14} />
-        <div className="grain bg-eggshell px-5">
-          <div className="h-2" />
+      {/* the map simply ends; content sits on eggshell */}
+      <div className="relative z-10 border-t-[1.5px] border-line">
+        <div className="px-5 pt-6">
           <div role="radiogroup" aria-label="Sort stores" className="flex rounded-[12px] border-[1.5px] border-ink p-1">
             {MODES.map((m) => {
               const on = m.id === mode
@@ -190,10 +190,11 @@ export default function Results({ ranked, mode, onMode, budget, demo, fellBack, 
 
           <section aria-label={`Ask ${buddy.name}`} className="mt-6">
             <SectionLabel>Ask {buddy.name}</SectionLabel>
-            <div className="no-scrollbar -mx-5 mt-1 flex gap-2 overflow-x-auto px-5">
+            <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5">
               {askChips(ranked[0]).map((c) => (
                 <button key={c.label} type="button" onClick={() => onAsk(c.question)} className="flex min-h-11 shrink-0 items-center">
-                  <span className="flex h-9 items-center rounded-[14px] border-[1.5px] border-ink bg-receipt px-3 text-[14px] font-semibold text-ink">
+                  <span className="flex h-9 items-center gap-2 rounded-[14px] border-[1.5px] border-ink bg-receipt px-3 text-[14px] font-semibold text-ink">
+                    <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: STICKER_COLORS[c.dot].bg }} />
                     {c.label}
                   </span>
                 </button>

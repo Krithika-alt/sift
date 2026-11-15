@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MyBuddy, PrimaryButton, SectionLabel, TornEdge } from '../components/brand.jsx'
+import { BuddySplotch, PrimaryButton, SectionLabel } from '../components/brand.jsx'
 import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
@@ -16,8 +16,8 @@ function Chevron() {
 
 function Row({ label, value, onClick, children }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-12 w-full items-center gap-3 border-b-[1.5px] border-dashed border-line px-4 py-2 text-left last:border-b-0">
-      <span className="flex-1 text-[17px] text-ink">{label}</span>
+    <button type="button" onClick={onClick} className="flex min-h-[52px] w-full items-center gap-3 border-b-[1.5px] border-dashed border-line px-4 py-2 text-left last:border-b-0">
+      <span className="flex-1 text-[15px] font-semibold text-ink">{label}</span>
       {children ?? <span className="max-w-[55%] text-right text-[15px] text-muted">{value}</span>}
       <span className="text-muted">
         <Chevron />
@@ -68,18 +68,13 @@ export default function Me({ profile, setProfile, onChangeBuddy }) {
   }
 
   return (
-    <div className="min-h-full px-5 pb-8 pt-14">
-      <section>
-        <TornEdge color="var(--kraft)" seed={61} />
-        <div className="grain flex items-center gap-4 rounded-b-[4px] bg-kraft p-4">
-          <MyBuddy size={120} />
-          <div>
-            <h1 className="font-display text-[28px] leading-tight text-ink">Hi, I'm {buddy.name}.</h1>
-            <button type="button" onClick={onChangeBuddy} className="-ml-1 min-h-11 px-1 text-[15px] font-semibold text-ink underline decoration-dashed underline-offset-4">
-              Change buddy
-            </button>
-          </div>
-        </div>
+    <div className="min-h-full px-5 pb-6 pt-14">
+      <section className="flex flex-col items-center text-center">
+        <BuddySplotch size={112} />
+        <h1 className="mt-4 font-display text-[28px] leading-tight text-ink">Hi, I'm {buddy.name}.</h1>
+        <button type="button" onClick={onChangeBuddy} className="min-h-11 px-2 text-[15px] font-semibold text-ink underline decoration-dashed underline-offset-4">
+          Change buddy
+        </button>
       </section>
 
       <SectionLabel className="mt-6">Your details</SectionLabel>

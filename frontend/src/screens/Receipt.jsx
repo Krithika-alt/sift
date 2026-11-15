@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { BottomBar, BuddyLine, DemoBadge, TornEdge } from '../components/brand.jsx'
+import { BottomBar, BuddyLine, DemoBadge, TornEdge, wash } from '../components/brand.jsx'
 import Sticker from '../components/Sticker.jsx'
-import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, walkMinutes } from '../lib/stores.js'
+import { directionsUrl, isReal, lineTotal, money, priceCounts, savingsVsNearby, storeColor, walkMinutes } from '../lib/stores.js'
 
 function Barcode({ seed }) {
   const bars = useMemo(() => {
@@ -39,6 +39,7 @@ const Rule = () => <div className="my-4 border-t-[1.5px] border-dashed border-li
 // Receipt: Courier Prime only. Tom speaks above it, never on it.
 export default function Receipt({ store, ranked, siftedAt, demo, onBack, onReport }) {
   const { real, simulated } = priceCounts(store)
+  const band = wash(storeColor(store.store_id), 14)
   const saves = savingsVsNearby(store, ranked)
   const listed = new Set(store.items_breakdown.map((i) => i.query))
   const notFound = store.missing_items.filter((q) => !listed.has(q))
@@ -59,17 +60,20 @@ export default function Receipt({ store, ranked, siftedAt, demo, onBack, onRepor
         </div>
 
         <div className="mt-4">
-          <BuddyLine size={64} text={28}>
+          <BuddyLine size={64} text={28} splotch>
             Here's the proof.
           </BuddyLine>
         </div>
 
         <article aria-label={`Receipt for ${store.name}`} className="mt-6 font-mono text-ink">
-          <TornEdge color="var(--receipt)" seed={31} height={10} teeth={40} />
+          {/* torn top in the store's light wash, then a 56px band behind the store name */}
+          <TornEdge color={band} seed={31} height={10} teeth={40} />
+          <div className="flex h-14 items-center justify-center px-4" style={{ background: band }}>
+            <h2 className="text-center text-[16px] font-bold uppercase leading-tight tracking-[0.06em]">{store.name}</h2>
+          </div>
           <div className="grain bg-receipt px-4 py-4">
             <header className="text-center">
-              <h2 className="text-[16px] font-bold uppercase tracking-[0.06em]">{store.name}</h2>
-              <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-muted">{when}</p>
+              <p className="text-[12px] uppercase tracking-[0.12em] text-muted">{when}</p>
               {store.last_crowd_ping && (
                 <p className="mt-1 text-[12px] uppercase tracking-[0.12em] text-muted">Checked {store.last_crowd_ping}</p>
               )}

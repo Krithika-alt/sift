@@ -8,7 +8,7 @@ export default function Splash() {
         <Wordmark size={120} onSoil />
         <p className="mt-4 font-display text-[28px] text-eggshell">Your list. Our pick.</p>
       </div>
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-eggshell/80">Checking shelves near you</p>
+      <p className="text-[15px] font-semibold text-eggshell/80">Checking shelves near you</p>
     </div>
   )
 }

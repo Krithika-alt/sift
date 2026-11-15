@@ -440,3 +440,8 @@ export function askAgent({ question, ranking }) {
   const headline = out.answer.split('. ')[0].replace(/\.$/, '') + '.'
   return new Promise((resolve) => setTimeout(() => resolve({ ...out, headline, source: 'demo' }), 1400))
 }
+
+// The mock store list for the Map tab before any sift: name, location and distance only.
+export function nearbyStores(user_location) {
+  return STORES.map((s) => ({ ...s, distance_miles: round2(haversineMiles(user_location.lat, user_location.lon, s.lat, s.lon)) }))
+}
