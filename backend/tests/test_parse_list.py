@@ -38,7 +38,7 @@ def test_parse_matches_and_flags_unmatched():
     out = parse_list("eggs, milk and unobtainium", m.products())
     assert [i["matched"] for i in out["items"]][:2] == [True, True]
     assert out["unmatched"] == ["unobtainium"]
-    assert out["rank_items"] == ["eggs", "milk", "unobtainium"]
+    assert [r["text"] for r in out["rank_items"]] == ["Large eggs, 12 ct", "Whole milk, 1 gal", "unobtainium"]
 
 
 def test_parse_list_endpoint():
@@ -48,7 +48,7 @@ def test_parse_list_endpoint():
     assert r.status_code == 200
     body = r.json()
     assert [i["text"] for i in body["items"]] == ["milk", "eggs", "something weird"]
-    assert body["rank_items"][:2] == ["milk", "eggs"]
+    assert [r["quantity"] for r in body["rank_items"]] == [1, 1, 1]
 
 
 def test_couple_of():

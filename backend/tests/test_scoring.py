@@ -90,7 +90,7 @@ def test_output_matches_contract_keys():
     assert set(s) == {"store_id", "name", "lat", "lon", "distance_miles", "total_basket_price",
                       "unit_price_savings_pct", "ml_rank_score", "last_crowd_ping",
                       "missing_items", "items_breakdown"}
-    assert set(s["items_breakdown"][0]) == {"query", "name", "price", "unit_price", "in_stock", "source", "price_age", "stale"}
+    assert set(s["items_breakdown"][0]) == {"query", "name", "price", "quantity", "line_total", "unit_price", "in_stock", "source", "price_age", "stale"}
 
 
 def test_haversine_and_time_ago():

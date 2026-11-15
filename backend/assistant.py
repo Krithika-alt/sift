@@ -110,6 +110,24 @@ def _in_stock(row) -> bool:
     return bool(row) and row.get("in_stock") and row.get("unit_price") is not None
 
 
+def pack_price(r: dict, p: dict) -> float:
+    """Price of the product's standard pack: unit_price x standard size (same rule the ranking uses),
+    so a store selling a smaller bag is not mistaken for the cheapest."""
+    up, sv = r.get("unit_price"), (p or {}).get("size_value")
+    if up is not None and sv:
+        return round(float(up) * float(sv), 2)
+    return r["price"]
+
+
+def _pack_text(r: dict, p: dict, eff: float) -> str:
+    """'' when the store sells the standard pack; otherwise what it actually sells."""
+    if abs(eff - r["price"]) <= 0.005 or not r.get("unit_price"):
+        return ""
+    size = r["price"] / r["unit_price"]
+    unit = r.get("unit") or p.get("size_unit") or "unit"
+    return f"; shelf ${r['price']:.2f} for a {size:g} {unit} pack"
+
+
 def _is_protein(p: dict) -> bool:
     if (p.get("category") or "").strip().lower() in PROTEIN_CATEGORIES:
         return True
@@ -254,7 +272,7 @@ def pair_answer(question: str, data: dict) -> dict | None:
     gap = rows[-1][0] - rows[0][0]
     answer = (f"At {store['name']}: {'; '.join(parts)}. "
               f"{rows[0][1]['name']} is cheaper by ${gap:.2f}.")
-    return {"answer": answer, "facts_used": parts}
+    return {"answer": answer, "facts_used": parts, "verify": [f"{price:.2f}" for price, _, _ in rows]}
 
 
 def price_answer(question: str, data: dict) -> dict:
@@ -264,7 +282,7 @@ def price_answer(question: str, data: dict) -> dict:
     if not p:
         return {"answer": "I couldn't tell which product you mean. Try the full product name, for example "
                           "'Large eggs, 12 ct'.", "facts_used": []}
-    rows = sorted(((r["price"], sid, r) for (sid, pid), r in latest.items()
+    rows = sorted(((pack_price(r, p), sid, r) for (sid, pid), r in latest.items()
                    if pid == p["product_id"] and _in_stock(r) and sid in stores), key=lambda x: x[0])
     if not rows:
         return {"answer": f"No store has an in-stock price for {p['name']} in our tables.", "facts_used": []}
@@ -272,10 +290,11 @@ def price_answer(question: str, data: dict) -> dict:
     parts = []
     for i, (price, sid, r) in enumerate(rows):
         gap = f" (+${price - low[0]:.2f})" if i else ""
-        parts.append(f"{stores[sid]['name']} ${price:.2f}{gap} [{_label(r.get('source'))}]")
+        parts.append(f"{stores[sid]['name']} ${price:.2f}{gap} [{_label(r.get('source'))}{_pack_text(r, p, price)}]")
     answer = (f"The cheapest {p['name']} is ${low[0]:.2f} at {stores[low[1]]['name']}. "
               f"All stores: {'; '.join(parts)}.")
-    return {"answer": answer, "facts_used": parts}
+    return {"answer": answer, "facts_used": parts,
+            "verify": [stores[low[1]]["name"].split(" (")[0].lower(), f"{low[0]:.2f}"]}
 
 
 def stock_answer(question: str, data: dict) -> dict:
@@ -287,7 +306,7 @@ def stock_answer(question: str, data: dict) -> dict:
     if not lacking:
         return {"answer": f"Every store in our tables has {p['name']} in stock.", "facts_used": []}
     ans = f"{p['name']} is not in stock (or has no price) at: {', '.join(lacking)}."
-    return {"answer": ans, "facts_used": [ans]}
+    return {"answer": ans, "facts_used": [ans], "verify": [n.split(" (")[0].lower() for n in lacking]}
 
 
 def answer_question(question: str, ranking: dict | None, data: dict | None = None) -> dict:

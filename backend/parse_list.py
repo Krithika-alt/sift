@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import re
 
-from matching import _norm, match_items
+from rapidfuzz import fuzz
+
+from matching import _norm
+from voice_match import VoiceMatcher
 
 NUMBER_WORDS = {
     "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
@@ -98,18 +101,37 @@ def split_list(text: str, products: list | None = None) -> list[dict]:
     return out
 
 
-def parse_list(text: str, products: list) -> dict:
-    """Split the transcript and match each item. Items we cannot match are flagged, never dropped."""
+def parse_list(text: str, products: list, alternatives: list | None = None) -> dict:
+    """Split the transcript and match each item. Items we cannot match are flagged, never dropped.
+
+    `alternatives` = the speech engine's other guesses for the whole transcript (Web Speech API
+    maxAlternatives). If an item is unmatched, a similar-sounding piece from an alternative that
+    does match is used instead (match_type "alternative").
+    Each item carries confidence, match_type, needs_confirm and suggestions so the app can ask
+    the user about weak matches instead of silently guessing.
+    """
+    vm = VoiceMatcher(products)
     pieces = split_list(text, products)
-    by_pid = {p["product_id"]: p for p in products}
+    alt_pieces = [p for a in (alternatives or []) for p in split_list(a, products)]
     items, unmatched = [], []
     for piece in pieces:
-        match = match_items([piece["text"]], products)
-        pid = match[0][1] if match else None
-        item = {**piece, "matched": pid is not None, "product_id": pid,
-                "name": by_pid[pid]["name"] if pid else None}
+        m = vm.match(piece["text"])
+        if not m["matched"]:
+            best = None
+            for ap in alt_pieces:
+                if fuzz.ratio(_norm(ap["text"]), _norm(piece["text"])) < 40:
+                    continue
+                am = vm.match(ap["text"])
+                if am["matched"] and (best is None or am["confidence"] > best["confidence"]):
+                    best = am
+            if best:
+                m = {**best, "confidence": min(best["confidence"], 85), "match_type": "alternative",
+                     "needs_confirm": True, "suggestions": []}
+        item = {**piece, **m}
         items.append(item)
-        if pid is None:
+        if not m["matched"]:
             unmatched.append(piece["text"])
-    return {"items": items, "unmatched": unmatched,
-            "rank_items": [i["text"] for i in items]}
+    # rank_items uses the matched product's name so the ranking finds the same product the user
+    # confirmed (the ranking's own matcher does not know aliases or sound-alikes).
+    rank_items = [{"text": i["name"] or i["text"], "quantity": i["quantity"]} for i in items]
+    return {"items": items, "unmatched": unmatched, "rank_items": rank_items}
