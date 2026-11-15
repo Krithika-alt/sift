@@ -25,13 +25,14 @@ export function storeInitials(storeId, name = '') {
  * the zigzag torn top; no lip, creases or shading): name (Karla 700 16, two lines max), item count
  * (Karla 13 muted), and produce-style stickers on the bag body: the winning store's initials in
  * its color, and a butter SAVED sticker. Tapping opens the Saved Bag screen.
+ * fill: stretch to the Saved grid column (176 tall). compact: the Bag screen's row, 132 x 150.
  */
-export default function PastBagCard({ pb, index = 0, onOpen, fill = false }) {
+export default function PastBagCard({ pb, index = 0, onOpen, fill = false, compact = false }) {
   const items = pb.items.map(toItem)
   const name = pb.name || autoName(items)
   // fill: stretch to the grid column. MiniBag needs a number to cut its zigzag top, so measure.
   const box = useRef(null)
-  const [width, setWidth] = useState(156)
+  const [width, setWidth] = useState(compact ? 132 : 156)
   useLayoutEffect(() => {
     if (!fill || !box.current) return
     const measure = () => setWidth(Math.floor(box.current.getBoundingClientRect().width))
@@ -42,7 +43,7 @@ export default function PastBagCard({ pb, index = 0, onOpen, fill = false }) {
   }, [fill])
   return (
     <button ref={box} type="button" onClick={onOpen} aria-label={`Open ${name}, ${items.length} items`} className={`shrink-0 text-left transition-transform active:scale-[0.98] ${fill ? 'w-full' : ''}`}>
-      <MiniBag color={BAG_COLORS[index % BAG_COLORS.length]} width={width} height={176}>
+      <MiniBag color={BAG_COLORS[index % BAG_COLORS.length]} width={width} height={compact ? 150 : 176}>
         <span className="line-clamp-2 text-[16px] font-bold leading-tight text-ink">{name}</span>
         <span className="mt-1 text-[13px] text-muted">
           {items.length} {items.length === 1 ? 'item' : 'items'}
@@ -50,7 +51,7 @@ export default function PastBagCard({ pb, index = 0, onOpen, fill = false }) {
         {pb.winner && (
           <span className="mt-auto flex items-center pb-1">
             <LandingSticker>
-              <Sticker shape="round" size="md" color={storeColor(pb.winner.store_id)} tilt={-8}>
+              <Sticker shape="round" size={compact ? 'sm' : 'md'} color={storeColor(pb.winner.store_id)} tilt={-8}>
                 {storeInitials(pb.winner.store_id)}
               </Sticker>
             </LandingSticker>

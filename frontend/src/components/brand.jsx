@@ -75,17 +75,41 @@ export function MyBuddy({ size = 64, style }) {
 }
 
 /**
+ * Behind every eggshell screen: a faint "aura" at the top (the one allowed gradient: the buddy's
+ * sticker color and pea, 0.08 opacity, 320px tall) and the paper grain over the whole page
+ * (above the aura, below content). Screens whose top is a map pass aura={false}.
+ */
+export function Backdrop({ aura = true }) {
+  const buddy = useBuddy()
+  const c = STICKER_COLORS[buddy.sticker]?.bg ?? STICKER_COLORS.pea.bg
+  return (
+    <>
+      {aura && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-[320px]"
+          style={{
+            background: `radial-gradient(120% 70% at 30% 0%, ${c} 0%, transparent 70%), radial-gradient(90% 60% at 85% 10%, #9DBE5A 0%, transparent 65%)`,
+            opacity: 0.08,
+          }}
+        />
+      )}
+      <span aria-hidden="true" className="page-grain pointer-events-none absolute inset-0 -z-10" />
+    </>
+  )
+}
+
+/**
  * The buddy standing in a small patch of soil (DirtPatch from Motifs.jsx, never redrawn): the
- * patch is 1.6x the buddy's width and the buddy overlaps its upper half. The box is as wide as
- * the patch, so nothing hangs past the 20px margins. The buddy idles (a 2px float) and tilts
- * its head 6deg whenever `say` changes.
+ * patch is 1.3x the buddy's width and the buddy overlaps its upper 40%. The buddy idles (a 2px
+ * float) and tilts its head 6deg whenever `say` changes. Never used on soil screens.
  */
 export function BuddySplotch({ size = 64, say }) {
   const buddy = useBuddy()
-  const patch = Math.round(size * 1.6)
+  const patch = Math.round(size * 1.3)
   const patchH = patch * 0.42
   return (
-    <span className="relative inline-flex shrink-0 justify-center" style={{ width: patch, height: size + patchH / 2 }}>
+    <span className="relative inline-flex shrink-0 justify-center" style={{ width: patch, height: size + patchH * 0.6 }}>
       <DirtPatch width={patch} style={{ position: 'absolute', left: 0, bottom: 0 }} />
       <IdleBuddy id={buddy.id} size={size} say={say} />
     </span>

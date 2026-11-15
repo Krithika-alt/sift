@@ -18,6 +18,9 @@ export const askChips = (best) => {
   ]
 }
 
+// Headlines up to this many characters are handwritten (Darumadrop 24); longer ones are Karla 700 18.
+const HANDWRITTEN_MAX = 60
+
 // If the answer starts with the same sentence as the headline, don't say it twice.
 function answerBody(answer = '', headline = '') {
   const first = answer.split(/(?<=\.)\s+/)[0] ?? ''
@@ -39,8 +42,9 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
 
   return (
     <Sheet open={open} onClose={onClose} title={`Ask ${buddy.name}`}>
+      {/* the question: Karla 600 15; the 44px close button centers on its first line */}
       <div className="flex items-start justify-between gap-2">
-        <h2 className="pt-3 text-[14px] font-semibold text-ink">{ask?.question}</h2>
+        <h2 className="pt-[11px] text-[15px] font-semibold leading-[22px] text-ink">{ask?.question}</h2>
         <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-[22px] text-ink">
           ✕
         </button>
@@ -73,10 +77,14 @@ export default function AskTomSheet({ open, ask, onClose, onRetry }) {
           <div>
             <div className="flex items-start gap-3">
               <MyBuddy size={56} style={{ marginTop: 2 }} />
-              {/* wraps, never truncated */}
-              <p className="min-w-0 font-display text-[24px] leading-[1.2] text-ink">{data.headline}</p>
+              {/* wraps, never truncated. Darumadrop only for short lines; long ones read better in Karla. */}
+              {String(data.headline ?? '').length <= HANDWRITTEN_MAX ? (
+                <p className="min-w-0 font-display text-[24px] leading-[1.2] text-ink">{data.headline}</p>
+              ) : (
+                <p className="min-w-0 pt-1 text-[18px] font-bold leading-[1.35] text-ink">{data.headline}</p>
+              )}
             </div>
-            {body && <p className="mt-4 text-[17px] leading-relaxed text-ink">{body}</p>}
+            {body && <p className="mt-4 text-[17px] leading-[1.5] text-ink">{body}</p>}
 
             <div className="mt-4">
               {data.source === 'genie' && data.verified ? (

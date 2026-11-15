@@ -10,7 +10,7 @@ export const BUDDIES = [
   { id: 'bea', name: 'Bea', kind: 'beet', sticker: 'beet' },
   { id: 'pip', name: 'Pip', kind: 'pea pod', sticker: 'pea' },
   { id: 'penny', name: 'Penny', kind: 'potato', sticker: 'sardine' },
-  { id: 'brock', name: 'Brock', kind: 'broccoli', sticker: 'olive' },
+  { id: 'brock', name: 'Bob', kind: 'broccoli', sticker: 'olive' },
   { id: 'moe', name: 'Moe', kind: 'mushroom', sticker: 'radish' },
   { id: 'lola', name: 'Lola', kind: 'lemon', sticker: 'butter' },
 ];

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BackButton, BuddyLine, DemoBadge, LandingSticker, SectionLabel, wash } from '../components/brand.jsx'
 import LeafletMap from '../components/LeafletMap.jsx'
-import RadiusPills from '../components/RadiusPills.jsx'
+import { RadiusPill } from '../components/RadiusPills.jsx'
 import Sticker, { STICKER_COLORS } from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { useBuddy } from '../lib/profile.js'
@@ -103,14 +103,14 @@ function RunnerRow({ store, n, ctx, onReceipt }) {
       </Sticker>
       <span className="min-w-0 flex-1">
         <span className="block text-[16px] font-bold leading-tight text-ink">{store.name}</span>
-        <span className="mt-0.5 block text-[13px] font-medium text-muted">
-          {fmtMi(store.distance_miles)} · {found} of {total} · {matchPct(store)} match
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-muted">
+          <span>
+            {fmtMi(store.distance_miles)} · {found} of {total} · {matchPct(store)} match
+          </span>
+          <ExtraSticker store={store} ctx={ctx} />
         </span>
       </span>
-      <span className="flex flex-col items-end gap-1">
-        <ExtraSticker store={store} ctx={ctx} />
-        <span className="font-mono text-[15px] font-bold text-ink">{money(store.total_basket_price)}</span>
-      </span>
+      <span className="w-[72px] shrink-0 text-right font-mono text-[15px] font-bold text-ink">{money(store.total_basket_price)}</span>
     </button>
   )
 }
@@ -124,7 +124,7 @@ export default function Results({ ranked, total, radius, onRadius, over = 0, mod
   const bestUnitId = ranked.reduce((a, s) => (!a || s.unit_price_savings_pct > a.unit_price_savings_pct ? s : a), null)?.store_id
   const ctx = { slapId, allSimulated, bestUnitId }
   const empty = ranked.length === 0 && total > 0
-  // Nothing inside the circle: the 3 mi pill pulses once (again each time the circle comes up empty).
+  // Nothing inside the circle: the radius pill pulses once (again each time the circle comes up empty).
   const [pulse, setPulse] = useState(0)
   useEffect(() => {
     if (empty) setPulse((n) => n + 1)
@@ -134,27 +134,31 @@ export default function Results({ ranked, total, radius, onRadius, over = 0, mod
     <div className="min-h-full pb-6">
       <div className="relative">
         <LeafletMap stores={ranked} user={user} radius={radius} height={300} padTop={16} />
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-10 flex h-11 items-center justify-between px-5">
-          <span data-map-avoid>
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-[800] flex items-start justify-between px-5">
+          <span data-map-avoid className="pointer-events-auto">
             <BackButton onClick={onEditBag} label="Back to my bag" />
           </span>
-          <span data-map-avoid className="pointer-events-auto flex items-center gap-2">
-            {demo && <DemoBadge />}
-            {/* bag summary pill on a butter wash */}
-            <button type="button" onClick={onEditBag} aria-label={`Your bag: ${bagSummary}. Edit`} className="flex min-h-11 items-center active:scale-[0.98]">
-              <span className="flex h-8 items-center rounded-2xl px-3 text-[13px] font-semibold text-ink" style={{ background: wash('butter', 45, 'var(--eggshell)') }}>
-                {bagSummary}
-              </span>
-            </button>
+          <span className="pointer-events-auto flex flex-col items-end">
+            <span data-map-avoid className="flex items-center gap-2">
+              {demo && <DemoBadge />}
+              {/* bag summary pill on a butter wash */}
+              <button type="button" onClick={onEditBag} aria-label={`Your bag: ${bagSummary}. Edit`} className="flex min-h-11 items-center active:scale-[0.98]">
+                <span className="flex h-8 items-center rounded-2xl px-3 text-[13px] font-semibold text-ink" style={{ background: wash('butter', 45, 'var(--eggshell)') }}>
+                  {bagSummary}
+                </span>
+              </button>
+            </span>
+            {/* the search radius: a small pill under the bag pill (the Map tab keeps the full row) */}
+            <span data-map-avoid className="-mt-2">
+              <RadiusPill value={radius} onChange={onRadius} pulse={pulse} />
+            </span>
           </span>
         </div>
       </div>
 
       {/* the map simply ends; content sits on eggshell */}
       <div className="relative z-10 border-t-[1.5px] border-line">
-        {/* search radius, just under the map */}
-        <RadiusPills value={radius} onChange={onRadius} pulse={pulse} className="px-5 pt-2" />
-        <div className="px-5 pt-4">
+        <div className="px-5 pt-5">
           <div role="radiogroup" aria-label="Sort stores" className="flex rounded-[12px] border-[1.5px] border-ink p-1">
             {MODES.map((m) => {
               const on = m.id === mode

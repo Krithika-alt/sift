@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MotionConfig, motion } from 'framer-motion'
 import { askAgent, getProducts, health, nearbyStores, rankStores, reportPrice } from './api/client.js'
-import { SvgDefs, Toast } from './components/brand.jsx'
+import { Backdrop, SvgDefs, Toast } from './components/brand.jsx'
 import { StickerDefs } from './components/Sticker.jsx'
 import { SheetHostContext } from './components/Sheet.jsx'
 import TabBar from './components/TabBar.jsx'
@@ -43,6 +43,9 @@ const TAB_SCREENS = ['map', 'saved', 'me']
 const TOAST_MS = 2500
 // How deep each screen sits, for the direction of the screen-change motion.
 const DEPTH = { bag: 0, map: 0, saved: 0, me: 0, savedBag: 1, sifting: 1, results: 2, receipt: 3 }
+// Soil screens have their own film grain and no aura; map screens get grain but no aura.
+const SOIL = ['sifting']
+const NO_AURA = ['map', 'results']
 
 function rankBody(items, mode, budget, preferences, home) {
   const body = {
@@ -318,16 +321,17 @@ export default function App() {
             <>
               <main
                 ref={scrollRef}
-                className={`grain no-scrollbar isolate min-h-0 flex-1 overscroll-contain ${screen === 'map' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+                className={`no-scrollbar isolate min-h-0 flex-1 overscroll-contain ${screen === 'map' ? 'overflow-hidden' : 'overflow-y-auto'}`}
               >
                 {/* screen change: fade + rise 8px, 260 ms ease-out; going back, the reverse */}
                 <motion.div
                   key={screen}
-                  className="h-full"
+                  className="relative grid min-h-full grid-cols-[minmax(0,1fr)]"
                   initial={{ opacity: 0, y: 8 * navDir }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                 >
+                {!SOIL.includes(screen) && <Backdrop aura={!NO_AURA.includes(screen)} />}
                 {screen === 'bag' && (
                   <Bag
                     bag={bag}

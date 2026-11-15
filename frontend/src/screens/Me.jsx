@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { BuddySplotch, LandingSticker, PrimaryButton, SectionLabel, tint } from '../components/brand.jsx'
+import { BuddySplotch, LandingSticker, PrimaryButton, SectionLabel } from '../components/brand.jsx'
 import Sheet from '../components/Sheet.jsx'
 import Sticker from '../components/Sticker.jsx'
 import { MODES } from '../config.js'
 import { DIETS, dietLabel, toDietIds, toggleDiet } from '../lib/needs.js'
-import { HOME_BASES, useBuddy } from '../lib/profile.js'
+import { HOME_BASES, displayName, useBuddy } from '../lib/profile.js'
 import { money } from '../lib/stores.js'
 import { modeLabel } from './Results.jsx'
 
@@ -68,13 +68,9 @@ function MeIcon({ name, color }) {
   )
 }
 
-/** A value as a small soft chip in the row's color at 22% (Karla 600 14). */
-function Chip({ color, children }) {
-  return (
-    <span className="inline-flex h-7 max-w-full items-center truncate rounded-full px-2.5 text-[14px] font-semibold text-ink" style={{ background: tint(color, 22) }}>
-      {children}
-    </span>
-  )
+/** A value: plain Karla 15 muted, right-aligned (the icons are the list's one color moment). */
+function Value({ children }) {
+  return <span className="min-w-0 truncate text-right text-[15px] text-muted">{children}</span>
 }
 
 // 56px rows on a receipt-paper card, 1px hairlines between.
@@ -106,9 +102,9 @@ function Choice({ on, onClick, children }) {
 }
 
 /**
- * Me: buddy; "Your Sift so far" (saved dollars and bag count, from saved bags in localStorage);
- * details with colored splotch icons and soft value chips. Diet and budget are the defaults for
- * every new bag. Saves immediately.
+ * Me, calm: buddy in its dirt patch; "Your Sift so far" as one line with the amount on a small
+ * butter sticker (from saved bags in localStorage); details with colored splotch icons and plain
+ * values. Diet and budget are the defaults for every new bag. Saves immediately.
  */
 export default function Me({ profile, setProfile, pastBags = [], onChangeBuddy, initialEdit = null, onEditOpened }) {
   const buddy = useBuddy()
@@ -154,48 +150,43 @@ export default function Me({ profile, setProfile, pastBags = [], onChangeBuddy, 
 
       <section aria-label="Your Sift so far" className="mt-6">
         <SectionLabel>Your Sift so far</SectionLabel>
-        <div className="mt-2 flex items-center gap-3">
-          <LandingSticker>
-            <Sticker color="butter" tilt={-4}>
-              Saved {money(savedTotal)}
-            </Sticker>
-          </LandingSticker>
-          <LandingSticker delay={0.06}>
-            <Sticker color="pea" tilt={3}>
-              {pastBags.length} {pastBags.length === 1 ? 'bag' : 'bags'}
-            </Sticker>
-          </LandingSticker>
-          <span className="text-[13px] text-muted">since you started</span>
-        </div>
+        {pastBags.length ? (
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[15px] text-ink">
+            <LandingSticker>
+              <Sticker color="butter" size="sm" tilt={-4}>
+                {money(savedTotal)}
+              </Sticker>
+            </LandingSticker>
+            <span>
+              saved across {pastBags.length} {pastBags.length === 1 ? 'bag' : 'bags'}
+            </span>
+          </p>
+        ) : (
+          <p className="mt-2 text-[15px] text-ink">Save a bag and your savings add up here.</p>
+        )}
       </section>
 
       <SectionLabel className="mt-6">Your details</SectionLabel>
       <div className="mt-2 overflow-hidden rounded-[6px] border border-hair bg-receipt">
         <Row icon="name" color="radish" label="Name" onClick={() => open('name', profile.name)}>
-          {profile.name ? <Chip color="radish">{profile.name}</Chip> : <span className="text-[14px] text-muted">Optional</span>}
+          <Value>{displayName(profile.name) || 'Optional'}</Value>
         </Row>
         <Row icon="home" color="sardine" label="Home base" onClick={() => open('home')}>
-          <Chip color="sardine">{profile.home.label}</Chip>
+          <Value>{profile.home.label}</Value>
         </Row>
         <Row icon="diet" color="pea" label="Diet" onClick={() => open('diet')}>
-          {diets.length ? (
-            diets.map((d) => (
-              <Chip key={d} color="pea">
-                {dietLabel(d)}
-              </Chip>
-            ))
-          ) : (
-            <span className="text-[14px] text-muted">None</span>
-          )}
+          <Value>{diets.length ? diets.map(dietLabel).join(', ') : 'None'}</Value>
         </Row>
         <Row icon="budget" color="butter" label="Weekly budget" onClick={() => open('budget', profile.budget == null ? '' : String(profile.budget))}>
-          <Chip color="butter">{profile.budget == null ? 'None' : `$${profile.budget}`}</Chip>
+          <Value>{profile.budget == null ? 'None' : `$${profile.budget}`}</Value>
         </Row>
         <Row icon="sort" color="clementine" label="Default sort" onClick={() => open('sort')}>
-          <Chip color="clementine">{sortLabel}</Chip>
+          <Value>{sortLabel}</Value>
         </Row>
         <Row icon="accessories" color="beet" label="Accessories" onClick={() => {}}>
-          <Chip color="beet">Soon</Chip>
+          <Sticker dashed size="sm" tilt={4}>
+            Soon
+          </Sticker>
         </Row>
       </div>
 

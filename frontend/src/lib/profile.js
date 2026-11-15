@@ -37,6 +37,9 @@ export function saveProfile(p) {
   return p
 }
 
+// "bob" -> "Bob", "mary ann" -> "Mary Ann" (names are shown capitalized however they were typed)
+export const displayName = (n = '') => n.trim().replace(/\s+/g, ' ').replace(/(^|\s)(\p{L})/gu, (m, sp, ch) => sp + ch.toUpperCase())
+
 export const buddyOf = (id) => BUDDIES.find((b) => b.id === id) ?? BUDDIES[0]
 
 // The chosen buddy, available on every screen: { id, name, kind, sticker }

@@ -15,6 +15,44 @@ const MAX_ZOOM = 17
 const MI_TO_M = 1609.34
 const CIRCLE_MS = 300
 const PEA = '#9DBE5A'
+const PIN_GAP = 36 // a pin sticker is 34px: centers closer than this would overlap
+const TICK_MIN = 10 // a pin moved more than this keeps a thin ink tick to its true spot
+
+/**
+ * Spiderfy-lite: push pins that would overlap apart along the line between them, a few passes.
+ * pts: [{ id, x, y }] in layer pixels -> { id: [dx, dy] }
+ */
+function separate(pts) {
+  const off = Object.fromEntries(pts.map((p) => [p.id, [0, 0]]))
+  for (let pass = 0; pass < 24; pass++) {
+    let moved = false
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const a = off[pts[i].id]
+        const b = off[pts[j].id]
+        let dx = pts[j].x + b[0] - (pts[i].x + a[0])
+        let dy = pts[j].y + b[1] - (pts[i].y + a[1])
+        let d = Math.hypot(dx, dy)
+        if (d >= PIN_GAP) continue
+        if (d < 0.01) {
+          // same spot: fan out by index
+          const ang = (j * 2.4) % (2 * Math.PI)
+          dx = Math.cos(ang)
+          dy = Math.sin(ang)
+          d = 1
+        }
+        const push = (PIN_GAP - d) / 2 + 0.5
+        a[0] -= (dx / d) * push
+        a[1] -= (dy / d) * push
+        b[0] += (dx / d) * push
+        b[1] += (dy / d) * push
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+  return off
+}
 
 /** Label on a small eggshell paper scrap: rough edge on the scrap only, text stays crisp. */
 function Scrap({ size = 12, tilt = 0, children }) {
@@ -80,6 +118,7 @@ const LeafletMap = forwardRef(function LeafletMap(
   const circle = useRef(null)
   const shownRadius = useRef(radius)
   const [els, setEls] = useState({ pins: [], labels: [], you: null })
+  const [nudge, setNudge] = useState({}) // pin id -> [dx, dy] px, so pins never overlap
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
 
   const fitRadius = (animate = false, r = radius) => {
@@ -203,17 +242,40 @@ const LeafletMap = forwardRef(function LeafletMap(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stores, user.lat, user.lon, full, offline])
 
+  // Pins never overlap: recompute the nudges whenever the zoom changes.
+  useEffect(() => {
+    const m = map.current
+    if (!m || !els.pins.length) return
+    const update = () => {
+      const pts = els.pins.map((p) => {
+        const pt = m.latLngToLayerPoint(p.mk.getLatLng())
+        return { id: p.id, x: pt.x, y: pt.y }
+      })
+      setNudge(separate(pts))
+    }
+    update()
+    m.on('zoomend', update)
+    return () => m.off('zoomend', update)
+  }, [els])
+
   // Hide labels that would cross the map edge, sit under a pin, or under the header and controls.
   useEffect(() => {
     const m = map.current
-    if (!m || !els.labels.length) return
+    if (!m || (!els.labels.length && !els.you)) return
     const check = () => {
       if (!box.current) return
       const frame = box.current.getBoundingClientRect()
       const bottom = frame.bottom - padBottom
-      const pinPts = els.pins.map((p) => p.el.getBoundingClientRect()).map((r) => [r.left + r.width / 2, r.top + r.height / 2])
+      const pinPts = els.pins.map((p) => (p.el.querySelector('button') ?? p.el).getBoundingClientRect()).map((r) => [r.left + r.width / 2, r.top + r.height / 2])
       const avoid = [...document.querySelectorAll('[data-map-avoid]')].map((e) => e.getBoundingClientRect())
       const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+      // the "You" scrap hides too when a pin sits on it
+      const you = els.you?.querySelector('[data-you-scrap]')
+      if (you) {
+        const r = you.getBoundingClientRect()
+        const clear = pinPts.every(([x, y]) => Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom)) >= 18)
+        you.style.visibility = clear ? 'visible' : 'hidden'
+      }
       for (const l of els.labels) {
         const inner = l.el.firstElementChild
         if (!inner) continue
@@ -229,7 +291,7 @@ const LeafletMap = forwardRef(function LeafletMap(
       clearTimeout(t)
       m.off('move zoom resize zoomend moveend', check)
     }
-  }, [els, padBottom])
+  }, [els, padBottom, nudge])
 
   // Selecting a store pans to it (inside the open area above any sheet).
   useEffect(() => {
@@ -249,7 +311,7 @@ const LeafletMap = forwardRef(function LeafletMap(
   return (
     <div className={`isolate overflow-hidden bg-eggshell ${abs ? '' : 'relative'} ${className}`} style={abs ? undefined : { height }}>
       <div ref={box} className="paper-map h-full w-full" role="region" aria-label={`Map of ${stores.length} stores within ${radius} miles`} />
-      <span aria-hidden="true" className="paper-grain grain" />
+      <span aria-hidden="true" className="paper-grain page-grain" />
 
       {/* zoom stack at the right edge: +, -, then recenter */}
       <div data-map-avoid className="absolute right-5 z-[700] flex flex-col items-center gap-2" style={{ bottom: padBottom + 16 }}>
@@ -269,27 +331,38 @@ const LeafletMap = forwardRef(function LeafletMap(
         </button>
       </div>
 
-      {els.pins.map((p) =>
-        createPortal(
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onSelect?.(p.id)
-            }}
-            aria-label={`${p.n}. ${p.name}`}
-            aria-pressed={p.id === selectedId}
-            className="flex h-11 w-11 items-center justify-center transition-transform"
-            style={{ transform: `translate(-50%, -50%) scale(${p.id === selectedId ? 1.2 : 1})` }}
-          >
-            <Sticker shape="round" size="md" color={p.color} tilt={p.n % 2 ? -6 : 5}>
-              {p.n}
-            </Sticker>
-          </button>,
+      {els.pins.map((p) => {
+        const [dx, dy] = nudge[p.id] ?? [0, 0]
+        const tick = Math.hypot(dx, dy) > TICK_MIN
+        return createPortal(
+          <span className="relative block">
+            {/* moved more than 10px: a thin ink tick back to the true spot */}
+            {tick && (
+              <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute left-0 top-0 overflow-visible">
+                <line x1="0" y1="0" x2={dx} y2={dy} stroke="var(--ink)" strokeWidth="1" />
+                <circle cx="0" cy="0" r="2" fill="var(--ink)" />
+              </svg>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect?.(p.id)
+              }}
+              aria-label={`${p.n}. ${p.name}`}
+              aria-pressed={p.id === selectedId}
+              className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center transition-transform"
+              style={{ transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${p.id === selectedId ? 1.2 : 1})` }}
+            >
+              <Sticker shape="round" size="md" color={p.color} tilt={p.n % 2 ? -6 : 5}>
+                {p.n}
+              </Sticker>
+            </button>
+          </span>,
           p.el,
           p.id,
-        ),
-      )}
+        )
+      })}
       {els.labels.map((l) =>
         createPortal(
           <span className="pointer-events-none block w-max -translate-x-1/2 -translate-y-1/2">
@@ -307,7 +380,7 @@ const LeafletMap = forwardRef(function LeafletMap(
             <span className="absolute left-0 top-0 block h-[21px] w-[21px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] border-ink bg-eggshell">
               <span className="absolute inset-[3px] rounded-full bg-ink" />
             </span>
-            <span className="absolute left-4 top-[-26px] w-max">
+            <span data-you-scrap className="absolute left-4 top-[-26px] w-max">
               <Scrap tilt={-3}>You</Scrap>
             </span>
           </span>,

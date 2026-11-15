@@ -5,7 +5,7 @@ import NeedStickers from '../components/NeedStickers.jsx'
 import PastBagCard from '../components/PastBagCard.jsx'
 import Wordmark from '../components/Wordmark.jsx'
 import { isDashed, isRankable } from '../lib/bag.js'
-import { useBuddy } from '../lib/profile.js'
+import { displayName, useBuddy } from '../lib/profile.js'
 
 export function BookmarkIcon({ filled }) {
   return (
@@ -15,16 +15,20 @@ export function BookmarkIcon({ filled }) {
   )
 }
 
+// The greeting stays within two lines of Darumadrop 28 beside the buddy; longer names drop it.
+const NAME_FITS = 10
+
 /** needs: { budget, radius, diets, over, onBudget, onRadius, onDiets, onParsed } (App owns them) */
 export default function Bag({ bag, setBag, needs, products, pastBags, saved, onSave, onOpenSaved, onSift, onPlace, demo, place, userName }) {
   const buddy = useBuddy()
   const [tomLine, setTomLine] = useState(null) // null = the default greeting
+  const name = displayName(userName)
   const [status, setStatus] = useState({ listening: false, parsing: false })
   const onStatus = useCallback((s) => setStatus(s), [])
   const greeting = bag.items.length === 0
     ? "Add a few things and I'll start digging."
-    : userName
-      ? `Hi, ${userName}. What do you need?`
+    : name && name.length <= NAME_FITS
+      ? `Hi, ${name}. What do you need?`
       : 'What do you need?'
 
   const rankable = bag.items.some(isRankable)
@@ -94,7 +98,7 @@ export default function Bag({ bag, setBag, needs, products, pastBags, saved, onS
             <SectionLabel>Saved bags</SectionLabel>
             <div className="no-scrollbar -mx-5 mt-2 flex gap-3 overflow-x-auto px-5 pb-1">
               {pastBags.map((pb, i) => (
-                <PastBagCard key={pb.at} pb={pb} index={i} onOpen={() => onOpenSaved(pb.at)} />
+                <PastBagCard key={pb.at} pb={pb} index={i} compact onOpen={() => onOpenSaved(pb.at)} />
               ))}
               <span aria-hidden="true" className="w-2 shrink-0" />
             </div>
