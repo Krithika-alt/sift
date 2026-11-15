@@ -44,8 +44,35 @@ def _get(url: str) -> dict:
     return r.json()
 
 
-def ask_genie(question: str, timeout: float = 25.0, max_rows: int = 5) -> dict:
-    """Return {"answer": str, "facts_used": [str], "source": "genie"}."""
+STYLE = ("Answer in 2 to 3 sentences using only data from the tables. Do not ask follow-up "
+         "questions. If the data does not contain the answer, say so.")
+
+
+def build_question(question: str, ranking: dict | None = None) -> str:
+    """Add the user's basket and winning store so Genie answers about THEIR items."""
+    stores = (ranking or {}).get("ranked_stores") or []
+    if not stores:
+        return f"{question}\n\n{STYLE}"
+    top = stores[0]
+    items = [b["name"] for b in top.get("items_breakdown", []) if b.get("name")]
+    ctx = f"Context: the user's basket is: {', '.join(items)}. " if items else ""
+    ctx += f"The top-ranked store is {top['name']}. "
+    if "swap" in question.lower() or "save" in question.lower():
+        ctx += ("Only suggest swaps for items in this basket (for example store brand versus name brand, "
+                "same category and unit), preferably at that store. If a basket item is already the store "
+                "brand or the cheapest option, say it is already the cheapest choice instead of suggesting "
+                "a swap. Never recommend a swap to a product the user already has. ")
+    return f"{ctx}\nQuestion: {question}\n\n{STYLE}"
+
+
+def _headline(answer: str) -> str:
+    first = answer.replace("**", "").replace("\n", " ").split(". ")[0].strip()
+    return first if first.endswith((".", "!", "?")) else first + "."
+
+
+def ask_genie(question: str, timeout: float = 25.0, max_rows: int = 5, ranking: dict | None = None) -> dict:
+    """Return {"answer", "headline", "facts_used", "source": "genie"}."""
+    question = build_question(question, ranking)
     base = _base()
     r = requests.post(f"{base}/start-conversation", headers=_headers(),
                       json={"content": question}, timeout=15)
@@ -95,7 +122,8 @@ def ask_genie(question: str, timeout: float = 25.0, max_rows: int = 5) -> dict:
                     pass
     if not texts:
         texts = descs  # no text answer: fall back to Genie's description of the query
-    if not texts and not facts:
-        raise GenieError("Genie returned no answer")
+    if not any(f.startswith("Genie row:") for f in facts):
+        # no queried rows backing the text: it may be a guess, so let the caller fall back
+        raise GenieError("Genie returned no data rows")
     answer = " ".join(dict.fromkeys(texts)) or "See the rows Genie returned."
-    return {"answer": answer, "facts_used": facts, "source": "genie"}
+    return {"answer": answer, "headline": _headline(answer), "facts_used": facts, "source": "genie"}
