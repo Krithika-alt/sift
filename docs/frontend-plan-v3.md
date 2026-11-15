@@ -100,5 +100,25 @@ Map style: a torn-paper collage of the Madison isthmus rather than map tiles. La
 - Entry point: a mic button (44px, ink outline icon, no color) inside the "Tell Tom what you need" input on the Bag screen. While listening: Tom's line is "Listening..." in Darumadrop with the same slow three-dot pulse as "Thinking...", and the live transcript appears in the input in muted text. Tap again to stop. No waveforms, no bright colors.
 - Typing stays as the fallback for noisy rooms and works exactly as before. If speech recognition is unsupported or permission is denied, hide the mic and keep typing.
 - In DEMO_MODE, parse-list is mocked locally by splitting the transcript on commas and "and" and matching against the mock products.
+- Recognition settings (from Role 1): lang "en-US", continuous = true (do not stop when the user pauses mid-list), interimResults = true for the live text, but parse only results where isFinal, joined with spaces. Demo in Chrome; Safari support is partial.
+- The bag is the confirm step before ranking: every parsed item is an editable row showing the matched product name and quantity, with a +/- quantity stepper (44px targets, Courier quantity) and remove. Unmatched items show what was said with the dashed NOT FOUND sticker; tapping one puts its text back in the input to retype. Edits update the rank_items sent to rank-stores. Button label stays "Sift my list".
+- rank-stores keeps the field names the backend actually accepts (user_location, not location).
+- Demo script for the pitch: "I need milk, a dozen eggs, two loaves of bread and peanut butter." Avoid noisy spots; typing is the fallback.
 - Optional if time allows: Tom speaks his one-line replies aloud (speechSynthesis) with a mute toggle on the Me tab.
 - Mic access only works on localhost or HTTPS. Voice is a bonus: the core loop must keep working without it.
+
+## Contract updates (Role 1, Nov 14 ~10 PM, all backward compatible)
+1. Quantities: POST /api/rank-stores `items` may mix plain strings and objects like {"text": "milk", "quantity": 3}. /api/parse-list returns items in exactly that shape, so pass them straight through. Each items_breakdown line now has `quantity` and `line_total` (= price x quantity; `price` stays the unit price). Receipt lines show "3 x MILK" style labels and `line_total` on the right; total_basket_price already sums line totals. Bag rows show the quantity when it is more than 1, with a small stepper if time allows.
+2. Voice: POST /api/parse-list returns `items` (`text`, `quantity`, `matched`, `name`) and `unmatched` (use this list for the NOT FOUND stickers and Tom's "I couldn't find..." line).
+3. Ask Tom: /api/ask-agent may also return `verified: true` -> show a small olive "CHECKED AGAINST PRICES" sticker under the answer. If `note` is present, show it as a muted Courier footnote. Ignore `genie_answer`.
+4. Freshness: each receipt line has `price_age` and `stale` -> price age in muted Courier on the line; STALE dashed sticker when stale.
+
+## Original task list coverage (from the team plan, Role 3)
+Items from the plan that must still appear somewhere in the design:
+- Match score: ml_rank_score as a percent, shown in muted Courier on the best-pick card and each runner-up ("MATCH 94%").
+- Last crowd ping: when last_crowd_ping exists, show a CROWD-CHECKED sticker (sardine) on the store and "CHECKED 4 MIN AGO" in muted Courier on the receipt.
+- Missing items: card shows "4 OF 5 ITEMS"; the receipt lists missing items at the bottom as "NOT AT THIS STORE: OATS" in tomato text-free style (ink text, dashed tomato underline), counted at the penalty price per the scoring rules.
+- Best unit price: a butter "BEST UNIT PRICE" sticker on the store with the lowest unit-price savings (unit_price_savings_pct highest), at most two stickers per card.
+- Re-sort animation when rankings change (slider replaced by Cheapest / Balanced / Closest).
+- Empty state on the Bag: Tom says "Add a few things and I'll start sifting." Error state: Tom says "I can't reach the shelves right now. Showing saved prices." plus the DEMO DATA label.
+- Laptop presentation: on screens wider than 500px, center the app in a 390 x 844 phone frame (ink outline, 44px radius) on a kraft desk background, with the wordmark and "Your list. Our pick." to the left. Judges see it on a laptop at the table.
